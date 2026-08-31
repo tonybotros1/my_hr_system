@@ -101,7 +101,10 @@ class AppSizes {
   static const double mobileBreakpoint = 480;
   static const double loginCardWidth = 430;
   static const double loadingCardWidth = 380;
-  static const double inputMinHeight = 47;
+  static const double inputMinHeight = 35;
+  static const double inputActionSize = 28;
+  static const double inputIconSize = 18;
+  static const double fieldVerticalPadding = 7;
   static const double primaryButtonHeight = 48;
   static const double secondaryButtonHeight = 46;
   static const double compactPagePadding = 15;
@@ -175,6 +178,10 @@ class AppSizes {
   static const double employeeFiltersMinWidth = 1180;
   static const double employeeFilterActionsWidth = 220;
   static const double employeeOverviewPanelHeight = 385;
+  static const double employeePhotoColumnWidth = 230;
+  static const double employeePhotoFallbackHeight = 268;
+  static const double employeePhotoCompactHeight = 300;
+  static const double employeePhotoActionsHeight = 35;
   static const double employeeRelatedTableMinWidth = 760;
   static const double employeeUtilityTableMinWidth = 1120;
   static const double employeeRecordDialogSmallWidth = 640;
@@ -528,10 +535,25 @@ class AppTheme {
         titleTextStyle: AppTextStyles.heading(fontSize: 20),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        isDense: true,
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSizes.fieldHorizontalPadding,
+          vertical: AppSizes.fieldVerticalPadding,
+        ),
+        constraints: const BoxConstraints.tightFor(
+          height: AppSizes.inputMinHeight,
+        ),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: AppSizes.inputMinHeight,
+          minHeight: AppSizes.inputMinHeight,
+          maxHeight: AppSizes.inputMinHeight,
+        ),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: AppSizes.inputMinHeight,
+          minHeight: AppSizes.inputMinHeight,
+          maxHeight: AppSizes.inputMinHeight,
         ),
         hintStyle: AppTextStyles.hint,
         labelStyle: AppTextStyles.fieldLabel,

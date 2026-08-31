@@ -14,6 +14,7 @@ import '../form_fields/app_text_form_field.dart';
 import 'employee_record_dialog.dart';
 import 'employee_records_table.dart';
 import 'employee_documents_dialog.dart';
+import 'employee_lookup_values_dialog.dart';
 import 'employee_utility_dialog.dart';
 
 Future<void> showEmployeeWorkspaceDialog(BuildContext context) async {
@@ -317,11 +318,53 @@ class _WorkspaceBodyState extends State<_WorkspaceBody> {
   }
 }
 
-class _PersonalInformationPanel extends GetView<EmployeesController> {
+class _PersonalInformationPanel extends StatefulWidget {
   const _PersonalInformationPanel();
 
   @override
+  State<_PersonalInformationPanel> createState() =>
+      _PersonalInformationPanelState();
+}
+
+class _PersonalInformationPanelState extends State<_PersonalInformationPanel> {
+  final _fieldsKey = GlobalKey();
+  double? _fieldsHeight;
+  bool _measurementScheduled = false;
+
+  EmployeesController get controller => Get.find<EmployeesController>();
+
+  void _scheduleFieldsMeasurement() {
+    if (_measurementScheduled) return;
+    _measurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measurementScheduled = false;
+      if (!mounted) return;
+      final box = _fieldsKey.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final height = box.size.height;
+      if ((_fieldsHeight ?? 0) - height > -0.5 &&
+          (_fieldsHeight ?? 0) - height < 0.5) {
+        return;
+      }
+      setState(() => _fieldsHeight = height);
+    });
+  }
+
+  Widget _trackedFields() {
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        _scheduleFieldsMeasurement();
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(
+        child: KeyedSubtree(key: _fieldsKey, child: const _PersonalFields()),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _scheduleFieldsMeasurement();
     return DecoratedBox(
       decoration: AppDecorations.contentCard,
       child: Column(
@@ -375,22 +418,32 @@ class _PersonalInformationPanel extends GetView<EmployeesController> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 660;
-                final image = const _EmployeeImagePicker();
-                final fields = const _PersonalFields();
+                final fields = _trackedFields();
                 if (compact) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      image,
+                      const SizedBox(
+                        height: AppSizes.employeePhotoCompactHeight,
+                        child: _EmployeeImagePicker(),
+                      ),
                       const SizedBox(height: AppSpacing.md),
                       fields,
                     ],
                   );
                 }
+                final photoHeight = math.max(
+                  _fieldsHeight ?? AppSizes.employeePhotoFallbackHeight,
+                  AppSizes.employeePhotoActionsHeight + 100,
+                );
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 150, child: image),
+                    SizedBox(
+                      width: AppSizes.employeePhotoColumnWidth,
+                      height: photoHeight,
+                      child: const _EmployeeImagePicker(),
+                    ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(child: fields),
                   ],
@@ -431,21 +484,176 @@ class _EmployeeImagePicker extends GetView<EmployeesController> {
       } else {
         preview = const _ImagePlaceholder();
       }
-      return InkWell(
-        onTap: controller.pickImage,
-        borderRadius: BorderRadius.circular(AppRadii.field),
-        child: Container(
-          height: 180,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: AppColors.softSurface,
-            border: Border.all(color: AppColors.borderStrong),
-            borderRadius: BorderRadius.circular(AppRadii.field),
+      final hasImage = (bytes != null && bytes.isNotEmpty) || url.isNotEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColors.softSurface,
+                border: Border.all(color: AppColors.borderStrong),
+                borderRadius: BorderRadius.circular(AppRadii.field),
+              ),
+              child: preview,
+            ),
           ),
-          child: preview,
-        ),
+          const SizedBox(height: AppSpacing.xs),
+          SizedBox(
+            height: AppSizes.employeePhotoActionsHeight,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: controller.pickImage,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                      ),
+                      textStyle: AppTextStyles.button.copyWith(fontSize: 11.5),
+                    ),
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 15),
+                    label: Text(
+                      hasImage ? 'Choose another' : 'Choose image',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: hasImage
+                        ? () => _showEmployeeImageViewer(
+                            context,
+                            bytes: bytes,
+                            url: url,
+                            title: controller.fullName.text.trim(),
+                          )
+                        : null,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxs,
+                      ),
+                      textStyle: AppTextStyles.link.copyWith(fontSize: 11.5),
+                    ),
+                    icon: const Icon(Icons.open_in_full_rounded, size: 14),
+                    label: const Text('Open'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     });
+  }
+}
+
+Future<void> _showEmployeeImageViewer(
+  BuildContext context, {
+  required List<int>? bytes,
+  required String url,
+  required String title,
+}) async {
+  final size = MediaQuery.sizeOf(context);
+  final dialogWidth = math.min(760, size.width - (AppSpacing.xxl * 2));
+  final dialogHeight = math.min(760, size.height - (AppSpacing.xxl * 2));
+  final history = BrowserDialogHistory.open(() {
+    if (Get.isDialogOpen == true) Get.back<void>();
+  });
+  try {
+    await Get.dialog<void>(
+      Dialog(
+        insetPadding: const EdgeInsets.all(AppSpacing.xxl),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.section),
+        ),
+        child: SizedBox(
+          width: dialogWidth.toDouble(),
+          height: dialogHeight.toDouble(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.xs,
+                  AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title.isEmpty ? 'Employee picture' : title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.heading(fontSize: 18),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: Get.back<void>,
+                      tooltip: 'Close image',
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: ColoredBox(
+                  color: AppColors.softSurface,
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 5,
+                    child: Center(
+                      child: bytes != null && bytes.isNotEmpty
+                          ? Image.memory(
+                              Uint8List.fromList(bytes),
+                              fit: BoxFit.contain,
+                            )
+                          : Image.network(
+                              url,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, _, _) =>
+                                  const _ImageLoadError(),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+      barrierColor: AppColors.dialogScrim,
+    );
+  } finally {
+    history.complete();
+  }
+}
+
+class _ImageLoadError extends StatelessWidget {
+  const _ImageLoadError();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.broken_image_outlined, color: AppColors.textHint, size: 38),
+        SizedBox(height: AppSpacing.xs),
+        Text(
+          'The image could not be opened.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      ],
+    );
   }
 }
 
@@ -460,7 +668,7 @@ class _ImagePlaceholder extends StatelessWidget {
         Icon(Icons.add_a_photo_outlined, color: AppColors.textHint, size: 30),
         SizedBox(height: AppSpacing.xs),
         Text(
-          'Choose image',
+          'No image selected',
           style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
       ],
@@ -698,19 +906,77 @@ class _AssignmentPanel extends GetView<EmployeesController> {
   }
 }
 
-class _AssignmentInformation extends GetView<EmployeesController> {
+class _AssignmentInformation extends StatefulWidget {
   const _AssignmentInformation();
 
   @override
+  State<_AssignmentInformation> createState() => _AssignmentInformationState();
+}
+
+class _AssignmentInformationState extends State<_AssignmentInformation> {
+  final _employmentKey = GlobalKey();
+  final _contractKey = GlobalKey();
+  double? _equalCardHeight;
+  double? _lastWidth;
+  bool _measurementScheduled = false;
+
+  void _scheduleCardMeasurement() {
+    if (_measurementScheduled) return;
+    _measurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measurementScheduled = false;
+      if (!mounted) return;
+      final employmentBox = _employmentKey.currentContext?.findRenderObject();
+      final contractBox = _contractKey.currentContext?.findRenderObject();
+      if (employmentBox is! RenderBox || contractBox is! RenderBox) return;
+      if (!employmentBox.hasSize || !contractBox.hasSize) return;
+      final height = math.max(
+        employmentBox.size.height,
+        contractBox.size.height,
+      );
+      if ((_equalCardHeight ?? 0) - height > -0.5 &&
+          (_equalCardHeight ?? 0) - height < 0.5) {
+        return;
+      }
+      setState(() => _equalCardHeight = height);
+    });
+  }
+
+  Widget _trackedCard(GlobalKey key, Widget child) {
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        _scheduleCardMeasurement();
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(
+        child: ConstrainedBox(
+          key: key,
+          constraints: BoxConstraints(minHeight: _equalCardHeight ?? 0),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _scheduleCardMeasurement();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
+            if (_lastWidth != constraints.maxWidth) {
+              _lastWidth = constraints.maxWidth;
+              _equalCardHeight = null;
+              _scheduleCardMeasurement();
+            }
             final sideBySide = constraints.maxWidth >= 1250;
-            final employment = const _EmploymentCard();
-            final contract = const _ContractCard();
+            final employment = _trackedCard(
+              _employmentKey,
+              const _EmploymentCard(),
+            );
+            final contract = _trackedCard(_contractKey, const _ContractCard());
             if (sideBySide) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,47 +1013,82 @@ class _EmploymentCard extends GetView<EmployeesController> {
       child: _ResponsiveFieldGrid(
         children: [
           _FieldSpan(
-            child: _LookupField(
+            child: _EmploymentLookupField(
               label: 'Employer',
               textController: controller.employer,
               selectedId: controller.employerId,
               onOpen: () => controller.listValues('EMPLOYERS'),
+              onManage: () => showEmployeeLookupValuesDialog(
+                context,
+                controller: controller,
+                code: 'EMPLOYERS',
+                title: 'Employers',
+                singularTitle: 'Employer',
+              ),
             ),
           ),
           _FieldSpan(
-            child: _LookupField(
+            child: _EmploymentLookupField(
               label: 'Department',
               textController: controller.department,
               selectedId: controller.departmentId,
               onOpen: () => controller.listValues('DEPARTMENTS'),
+              onManage: () => showEmployeeLookupValuesDialog(
+                context,
+                controller: controller,
+                code: 'DEPARTMENTS',
+                title: 'Departments',
+                singularTitle: 'Department',
+              ),
             ),
           ),
           _FieldSpan(
-            child: _LookupField(
+            child: _EmploymentLookupField(
               label: 'Job Title',
               textController: controller.jobTitle,
               selectedId: controller.jobTitleId,
               onOpen: () => controller.listValues('JOBS'),
+              onManage: () => showEmployeeLookupValuesDialog(
+                context,
+                controller: controller,
+                code: 'JOBS',
+                title: 'Jobs',
+                singularTitle: 'Job',
+              ),
             ),
           ),
           _FieldSpan(
-            child: _LookupField(
+            child: _EmploymentLookupField(
               label: 'Location',
               textController: controller.location,
               selectedId: controller.locationId,
               onOpen: () => controller.listValues('LOCATIONS'),
+              onManage: () => showEmployeeLookupValuesDialog(
+                context,
+                controller: controller,
+                code: 'LOCATIONS',
+                title: 'Locations',
+                singularTitle: 'Location',
+              ),
             ),
           ),
           _FieldSpan(
-            child: _LookupField(
+            child: _EmploymentLookupField(
               label: 'Reporting Manager',
               textController: controller.reportingManager,
               selectedId: controller.reportingManagerId,
               onOpen: () => controller.listValues('REPORTING_MANAGER'),
+              onManage: () => showEmployeeLookupValuesDialog(
+                context,
+                controller: controller,
+                code: 'REPORTING_MANAGER',
+                title: 'Reporting Managers',
+                singularTitle: 'Reporting Manager',
+              ),
             ),
           ),
           _FieldSpan(
-            child: _LookupField(
+            child: _EmploymentLookupField(
               label: 'Payroll *',
               textController: controller.payroll,
               selectedId: controller.payrollId,
@@ -810,9 +1111,24 @@ class _ContractCard extends GetView<EmployeesController> {
       title: 'Contract Dates',
       child: Column(
         children: [
-          _DateField(label: 'Hire Date', controller: controller.hireDate),
-          const SizedBox(height: AppSpacing.md),
-          _DateField(label: 'End Date', controller: controller.endDate),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _DateField(
+                  label: 'Hire Date',
+                  controller: controller.hireDate,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _DateField(
+                  label: 'End Date',
+                  controller: controller.endDate,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.md),
           AnimatedBuilder(
             animation: Listenable.merge([
@@ -829,6 +1145,10 @@ class _ContractCard extends GetView<EmployeesController> {
               final days = start == null
                   ? 0
                   : end.difference(start).inDays.abs();
+              final totalMonths = days ~/ 30;
+              final years = totalMonths ~/ 12;
+              final months = totalMonths % 12;
+              final remainingDays = days % 30;
               return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.sm),
@@ -840,8 +1160,9 @@ class _ContractCard extends GetView<EmployeesController> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _DurationValue(value: '${days ~/ 30}', label: 'Months'),
-                    _DurationValue(value: '${days % 30}', label: 'Days'),
+                    _DurationValue(value: '$years', label: 'Years'),
+                    _DurationValue(value: '$months', label: 'Months'),
+                    _DurationValue(value: '$remainingDays', label: 'Days'),
                   ],
                 ),
               );
@@ -1130,6 +1451,65 @@ class _LookupField extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+class _EmploymentLookupField extends StatelessWidget {
+  const _EmploymentLookupField({
+    required this.label,
+    required this.textController,
+    required this.selectedId,
+    required this.onOpen,
+    this.onManage,
+    this.required = false,
+  });
+
+  final String label;
+  final TextEditingController textController;
+  final RxString selectedId;
+  final Future<Map<String, dynamic>> Function() onOpen;
+  final VoidCallback? onManage;
+  final bool required;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _LookupField(
+            label: label,
+            textController: textController,
+            selectedId: selectedId,
+            onOpen: onOpen,
+            required: required,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Padding(
+          padding: const EdgeInsets.only(top: 23),
+          child: SizedBox.square(
+            dimension: AppSizes.inputMinHeight,
+            child: onManage == null
+                ? const SizedBox.shrink()
+                : IconButton(
+                    tooltip: 'Manage $label',
+                    onPressed: onManage,
+                    style: IconButton.styleFrom(
+                      foregroundColor: AppColors.primaryDark,
+                      backgroundColor: AppColors.primaryLight,
+                      hoverColor: AppColors.segmentBackground,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.field),
+                        side: const BorderSide(color: AppColors.borderStrong),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_card_outlined, size: 18),
+                  ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

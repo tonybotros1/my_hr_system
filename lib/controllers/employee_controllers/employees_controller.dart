@@ -495,11 +495,105 @@ class EmployeesController extends GetxController {
     return false;
   }
 
-  Future<Map<String, dynamic>> listValues(String code) => _loadLookup(
+  Future<Map<String, dynamic>> listValues(
+    String code, {
+    bool refresh = false,
+  }) => _loadLookup(
     'list:$code',
     '/list_of_values/get_list_values_by_code?code=${Uri.encodeQueryComponent(code)}',
     'values',
+    refresh: refresh,
   );
+
+  Future<bool> addListValue(String code, String name) async {
+    final valueName = name.trim();
+    if (valueName.isEmpty) return false;
+    try {
+      final listId = await _listIdForCode(code);
+      final response = await _api.postJson(
+        '/list_of_values/add_new_value/$listId',
+        body: {'name': valueName, 'mastered_by_id': ''},
+      );
+      if (response['list'] is! Map) {
+        throw ApiRequestException(
+          employeeString(response['message']).isEmpty
+              ? 'The server did not return the new value.'
+              : employeeString(response['message']),
+        );
+      }
+      _lookupCache.remove('list:$code');
+      return true;
+    } on SessionExpiredException {
+      Get.offAllNamed('/loginScreen');
+    } on ApiRequestException catch (error) {
+      await _showError('Could not add value', error.message);
+    } catch (_) {
+      await _showError(
+        'Could not add value',
+        'The new list value could not be saved.',
+      );
+    }
+    return false;
+  }
+
+  Future<bool> updateListValue(String code, String valueId, String name) async {
+    final valueName = name.trim();
+    if (valueId.isEmpty || valueName.isEmpty) return false;
+    try {
+      final response = await _api.patchJson(
+        '/list_of_values/update_value/$valueId',
+        body: {'name': valueName, 'mastered_by_id': ''},
+      );
+      if (response['value'] is! Map) {
+        throw ApiRequestException(
+          employeeString(response['message']).isEmpty
+              ? 'The server did not return the updated value.'
+              : employeeString(response['message']),
+        );
+      }
+      _lookupCache.remove('list:$code');
+      return true;
+    } on SessionExpiredException {
+      Get.offAllNamed('/loginScreen');
+    } on ApiRequestException catch (error) {
+      await _showError('Could not update value', error.message);
+    } catch (_) {
+      await _showError(
+        'Could not update value',
+        'The list value could not be updated.',
+      );
+    }
+    return false;
+  }
+
+  Future<bool> deleteListValue(String code, String valueId) async {
+    if (valueId.isEmpty) return false;
+    try {
+      final response = await _api.deleteJson(
+        '/list_of_values/delete_value/$valueId',
+      );
+      final message = employeeString(response['message']);
+      if (!message.toLowerCase().contains('success')) {
+        throw ApiRequestException(
+          message.isEmpty
+              ? 'The server did not confirm the deletion.'
+              : message,
+        );
+      }
+      _lookupCache.remove('list:$code');
+      return true;
+    } on SessionExpiredException {
+      Get.offAllNamed('/loginScreen');
+    } on ApiRequestException catch (error) {
+      await _showError('Could not delete value', error.message);
+    } catch (_) {
+      await _showError(
+        'Could not delete value',
+        'The list value could not be deleted.',
+      );
+    }
+    return false;
+  }
 
   Future<Map<String, dynamic>> countries() =>
       _loadLookup('countries', '/countries/get_countries', 'countries');
@@ -629,6 +723,21 @@ class EmployeesController extends GetxController {
     } catch (_) {
       return {};
     }
+  }
+
+  Future<String> _listIdForCode(String code) async {
+    final response = await _api.getJson(
+      '/list_of_values/get_list_details_by_code?code=${Uri.encodeQueryComponent(code)}',
+    );
+    final details = response['list_details'];
+    if (details is! Map) {
+      throw const ApiRequestException('The list details are unavailable.');
+    }
+    final id = employeeString(details['_id']);
+    if (id.isEmpty) {
+      throw const ApiRequestException('The list identifier is missing.');
+    }
+    return id;
   }
 
   void _populateEditor(EmployeeDetails employee) {

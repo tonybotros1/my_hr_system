@@ -167,10 +167,10 @@ class _DropdownSuffixButton extends StatelessWidget {
       onPressed: onPressed,
       tooltip: tooltip,
       color: color,
-      icon: Icon(icon, size: 19),
+      icon: Icon(icon, size: AppSizes.inputIconSize),
       style: IconButton.styleFrom(
-        minimumSize: const Size.square(36),
-        maximumSize: const Size.square(36),
+        minimumSize: const Size.square(AppSizes.inputActionSize),
+        maximumSize: const Size.square(AppSizes.inputActionSize),
         padding: EdgeInsets.zero,
         hoverColor: hoverColor,
         highlightColor: hoverColor,

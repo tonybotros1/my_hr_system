@@ -189,7 +189,10 @@ class DropdownController extends GetxController {
                               suffixIcon: Focus(
                                 skipTraversal: true,
                                 child: IconButton(
-                                  icon: const Icon(Icons.close, size: 20),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: AppSizes.inputIconSize,
+                                  ),
                                   onPressed: () {
                                     searchQuery.value = '';
                                     query.value.clear();
@@ -217,7 +220,6 @@ class DropdownController extends GetxController {
                                 ),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
-                                vertical: 8,
                                 horizontal: 10,
                               ),
                             ),
@@ -814,6 +816,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                                 ),
                                 Icon(
                                   Icons.more_horiz_rounded,
+                                  size: AppSizes.inputIconSize,
                                   color: isEnabled
                                       ? AppColors.iconMuted
                                       : AppColors.textHint,
@@ -827,7 +830,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                                       ),
                                       child: const Icon(
                                         Icons.clear,
-                                        size: 18,
+                                        size: AppSizes.inputIconSize,
                                         color: AppColors.error,
                                       ),
                                       onTap: () {

@@ -407,7 +407,7 @@ class _PanelSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: AppSizes.inputMinHeight,
       child: TextField(
         controller: controller,
         onChanged: onChanged,

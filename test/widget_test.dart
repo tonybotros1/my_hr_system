@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -537,6 +539,63 @@ void main() {
 
     expect(secondOpening, contains('employer-1'));
     expect(requestCount, 1);
+  });
+
+  test('employee employment values are added through list-values API', () async {
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+    var valuesRequestCount = 0;
+    final client = MockClient((request) async {
+      expect(request.headers['Authorization'], 'Bearer test-token');
+      if (request.url.path == '/list_of_values/get_list_values_by_code') {
+        valuesRequestCount++;
+        expect(request.url.queryParameters['code'], 'EMPLOYERS');
+        final name = valuesRequestCount == 1
+            ? 'Existing Employer'
+            : 'New Employer';
+        return http.Response(
+          '{"values":[{"_id":"employer-$valuesRequestCount","name":"$name"}]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.url.path == '/list_of_values/get_list_details_by_code') {
+        expect(request.method, 'GET');
+        expect(request.url.queryParameters['code'], 'EMPLOYERS');
+        return http.Response(
+          '{"list_details":{"_id":"employers-list"}}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.url.path == '/list_of_values/add_new_value/employers-list') {
+        expect(request.method, 'POST');
+        expect(jsonDecode(request.body), {
+          'name': 'New Employer',
+          'mastered_by_id': '',
+        });
+        return http.Response(
+          '{"message":"Value added successfully!","list":{"_id":"employer-2","name":"New Employer"}}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not found', 404);
+    });
+    final controller = EmployeesController(
+      api: AuthenticatedApiService(
+        httpClient: client,
+        session: AuthSessionService(),
+      ),
+    );
+
+    final firstOpening = await controller.listValues('EMPLOYERS');
+    final saved = await controller.addListValue('EMPLOYERS', 'New Employer');
+    final secondOpening = await controller.listValues('EMPLOYERS');
+
+    expect(firstOpening['employer-1']['name'], 'Existing Employer');
+    expect(saved, isTrue);
+    expect(secondOpening['employer-2']['name'], 'New Employer');
+    expect(valuesRequestCount, 2);
   });
 
   test(
