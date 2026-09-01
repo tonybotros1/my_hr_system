@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 
 import '../../consts.dart';
 import '../../controllers/payroll_controllers/legislation_controller.dart';
+import '../../models/payroll/legislation_model.dart';
+import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
 
 Future<void> showLegislationEditorDialog(BuildContext context) async {
@@ -963,34 +965,15 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: textController,
-      builder: (context, value, _) {
-        return AppTextFormField(
-          label: label,
-          hintText: hintText,
-          controller: textController,
-          readOnly: true,
-          onTap: () => Get.find<LegislationController>().selectDate(
-            context,
-            textController,
-          ),
-          suffixIcon: value.text.isEmpty
-              ? IconButton(
-                  tooltip: 'Select $label',
-                  onPressed: () => Get.find<LegislationController>().selectDate(
-                    context,
-                    textController,
-                  ),
-                  icon: const Icon(Icons.calendar_today_outlined, size: 17),
-                )
-              : IconButton(
-                  tooltip: 'Clear $label',
-                  onPressed: textController.clear,
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                ),
-        );
-      },
+    return AppDateFormField(
+      label: label,
+      hintText: hintText,
+      controller: textController,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2200, 12, 31),
+      helpText: 'Select effective date',
+      parseDate: parseLegislationDate,
+      formatDate: formatLegislationDate,
     );
   }
 }

@@ -10,6 +10,7 @@ import '../../models/employees/employee_model.dart';
 import '../../services/browser_dialog_history.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
+import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
 import 'employee_record_dialog.dart';
 import 'employee_records_table.dart';
@@ -18,12 +19,17 @@ import 'employee_lookup_values_dialog.dart';
 import 'employee_utility_dialog.dart';
 
 Future<void> showEmployeeWorkspaceDialog(BuildContext context) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
   final history = BrowserDialogHistory.open(() {
-    if (Get.isDialogOpen == true) Get.back<void>();
+    if (navigator.canPop()) navigator.pop<void>();
   });
   try {
-    await Get.dialog<void>(
-      Dialog(
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
         backgroundColor: AppColors.mainCanvas,
@@ -37,8 +43,6 @@ Future<void> showEmployeeWorkspaceDialog(BuildContext context) async {
           ),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();
@@ -561,12 +565,17 @@ Future<void> _showEmployeeImageViewer(
   final size = MediaQuery.sizeOf(context);
   final dialogWidth = math.min(760, size.width - (AppSpacing.xxl * 2));
   final dialogHeight = math.min(760, size.height - (AppSpacing.xxl * 2));
+  final navigator = Navigator.of(context, rootNavigator: true);
   final history = BrowserDialogHistory.open(() {
-    if (Get.isDialogOpen == true) Get.back<void>();
+    if (navigator.canPop()) navigator.pop<void>();
   });
   try {
-    await Get.dialog<void>(
-      Dialog(
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.xxl),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -596,7 +605,7 @@ Future<void> _showEmployeeImageViewer(
                       ),
                     ),
                     IconButton(
-                      onPressed: Get.back<void>,
+                      onPressed: () => Navigator.of(dialogContext).pop<void>(),
                       tooltip: 'Close image',
                       icon: const Icon(Icons.close_rounded),
                     ),
@@ -630,8 +639,6 @@ Future<void> _showEmployeeImageViewer(
           ),
         ),
       ),
-      barrierDismissible: true,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();
@@ -1521,34 +1528,11 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppTextFormField(
+    return AppDateFormField(
       label: label,
-      hintText: 'YYYY-MM-DD',
       controller: controller,
-      readOnly: true,
-      onTap: () async {
-        final initial = DateTime.tryParse(controller.text) ?? DateTime.now();
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: initial,
-          firstDate: DateTime(1940),
-          lastDate: DateTime(2200),
-        );
-        if (picked != null) {
-          controller.text = EmployeesController.formatDate(picked);
-        }
-      },
-      suffixIcon: controller.text.isEmpty
-          ? const Icon(Icons.calendar_today_outlined, size: 18)
-          : IconButton(
-              tooltip: 'Clear date',
-              onPressed: controller.clear,
-              icon: const Icon(
-                Icons.close_rounded,
-                size: 18,
-                color: AppColors.error,
-              ),
-            ),
+      firstDate: DateTime(1940),
+      lastDate: DateTime(2200),
     );
   }
 }

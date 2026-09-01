@@ -5,6 +5,7 @@ import '../../consts.dart';
 import '../../controllers/payroll_controllers/public_holidays_controller.dart';
 import '../../models/payroll/public_holiday_model.dart';
 import '../dialogs/app_alert_dialog.dart';
+import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
 
 Future<void> showPublicHolidayEditorDialog(
@@ -39,7 +40,7 @@ class _PublicHolidayEditorDialog extends StatefulWidget {
 class _PublicHolidayEditorDialogState
     extends State<_PublicHolidayEditorDialog> {
   final _formKey = GlobalKey<FormState>();
-  late DateTime selectedDate;
+  DateTime? selectedDate;
   late final TextEditingController dateController;
   late final TextEditingController nameController;
 
@@ -53,7 +54,7 @@ class _PublicHolidayEditorDialogState
     super.initState();
     selectedDate = DateUtils.dateOnly(widget.initialDate);
     dateController = TextEditingController(
-      text: formatPublicHolidayDate(selectedDate),
+      text: formatPublicHolidayDate(selectedDate!),
     );
     nameController = TextEditingController(text: widget.holiday?.name ?? '');
   }
@@ -163,17 +164,19 @@ class _PublicHolidayEditorDialogState
                   },
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                AppTextFormField(
+                AppDateFormField(
                   label: 'Date',
                   hintText: 'DD-MM-YYYY',
                   controller: dateController,
-                  readOnly: true,
-                  onTap: _selectDate,
-                  suffixIcon: IconButton(
-                    tooltip: 'Select holiday date',
-                    onPressed: _selectDate,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Holiday date is required.'
+                      : null,
+                  firstDate: DateTime(controller.selectedYear.value),
+                  lastDate: DateTime(controller.selectedYear.value, 12, 31),
+                  helpText: 'Holiday date',
+                  parseDate: (value) => parsePublicHolidayDate(value),
+                  formatDate: formatPublicHolidayDate,
+                  onChanged: (date) => setState(() => selectedDate = date),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextFormField(
@@ -195,26 +198,12 @@ class _PublicHolidayEditorDialogState
     );
   }
 
-  Future<void> _selectDate() async {
-    final year = controller.selectedYear.value;
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(year),
-      lastDate: DateTime(year, 12, 31),
-      helpText: 'Holiday date',
-    );
-    if (selected == null || !mounted) return;
-    setState(() {
-      selectedDate = DateUtils.dateOnly(selected);
-      dateController.text = formatPublicHolidayDate(selectedDate);
-    });
-  }
-
   Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false) || selectedDate == null) {
+      return;
+    }
     final saved = await controller.saveHoliday(
-      date: selectedDate,
+      date: selectedDate!,
       name: nameController.text,
       existing: widget.holiday,
     );

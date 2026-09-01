@@ -9,6 +9,7 @@ import '../../models/employees/employee_model.dart';
 import '../../services/browser_dialog_history.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
+import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
 import 'employee_records_table.dart';
 
@@ -22,29 +23,38 @@ Future<bool> showEmployeeRecordDialog(
   final availableWidth = math.max(280, size.width - (AppSpacing.md * 2));
   final availableHeight = math.max(260, size.height - (AppSpacing.md * 2));
   bool? result;
+  final navigator = Navigator.of(context, rootNavigator: true);
   final history = BrowserDialogHistory.open(() {
-    if (Get.isDialogOpen == true) Get.back<bool>(result: false);
+    if (navigator.canPop()) navigator.pop<bool>(false);
   });
   try {
-    result = await Get.dialog<bool>(
-      Dialog(
+    result = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.md),
         clipBehavior: Clip.antiAlias,
+        backgroundColor: AppColors.mainCanvas,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.editor),
         ),
-        child: SizedBox(
-          width: math.min(layout.width, availableWidth).toDouble(),
-          height: math.min(layout.height, availableHeight).toDouble(),
-          child: _EmployeeRecordEditor(
-            kind: kind,
-            record: record,
-            preferredColumns: layout.columns,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: math.min(layout.maxHeight, availableHeight).toDouble(),
+          ),
+          child: SizedBox(
+            key: const ValueKey('employee-record-dialog-content'),
+            width: math.min(layout.width, availableWidth).toDouble(),
+            child: _EmployeeRecordEditor(
+              kind: kind,
+              record: record,
+              preferredColumns: layout.columns,
+            ),
           ),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();
@@ -53,46 +63,50 @@ Future<bool> showEmployeeRecordDialog(
 }
 
 _RecordDialogLayout _layoutFor(EmployeeRecordKind kind) => switch (kind) {
-  EmployeeRecordKind.address ||
+  EmployeeRecordKind.address => const _RecordDialogLayout(
+    width: AppSizes.employeeAddressDialogWidth,
+    maxHeight: 390,
+    columns: 1,
+  ),
   EmployeeRecordKind.nationality => const _RecordDialogLayout(
     width: AppSizes.employeeRecordDialogMediumWidth,
-    height: 270,
+    maxHeight: 270,
     columns: 3,
   ),
   EmployeeRecordKind.phone => const _RecordDialogLayout(
     width: AppSizes.employeeRecordDialogSmallWidth,
-    height: 270,
+    maxHeight: 270,
     columns: 2,
   ),
   EmployeeRecordKind.socialContact => const _RecordDialogLayout(
     width: AppSizes.employeeRecordDialogSmallWidth,
-    height: 350,
+    maxHeight: 350,
     columns: 2,
   ),
   EmployeeRecordKind.bankAccount => const _RecordDialogLayout(
-    width: AppSizes.employeeRecordDialogMediumWidth,
-    height: 350,
-    columns: 2,
+    width: AppSizes.employeeAddressDialogWidth,
+    maxHeight: 430,
+    columns: 1,
   ),
   EmployeeRecordKind.healthCard => const _RecordDialogLayout(
-    width: AppSizes.employeeRecordDialogWideWidth,
-    height: 460,
-    columns: 3,
+    width: AppSizes.employeeRecordDialogMediumWidth,
+    maxHeight: 460,
+    columns: 2,
   ),
   EmployeeRecordKind.payrollElement ||
   EmployeeRecordKind.loanAdvance => const _RecordDialogLayout(
     width: AppSizes.employeeRecordDialogMediumWidth,
-    height: 455,
+    maxHeight: 455,
     columns: 2,
   ),
   EmployeeRecordKind.leave => const _RecordDialogLayout(
     width: AppSizes.employeeRecordDialogMediumWidth,
-    height: 540,
+    maxHeight: 540,
     columns: 2,
   ),
   EmployeeRecordKind.contactRelative => const _RecordDialogLayout(
     width: AppSizes.employeeRecordDialogWideWidth,
-    height: 620,
+    maxHeight: 620,
     columns: 3,
   ),
 };
@@ -100,12 +114,12 @@ _RecordDialogLayout _layoutFor(EmployeeRecordKind kind) => switch (kind) {
 class _RecordDialogLayout {
   const _RecordDialogLayout({
     required this.width,
-    required this.height,
+    required this.maxHeight,
     required this.columns,
   });
 
   final double width;
-  final double height;
+  final double maxHeight;
   final int columns;
 }
 
@@ -174,12 +188,15 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         _DialogHeader(
           title:
               '${record == null ? 'New' : 'Edit'} ${labelForRecordKind(widget.kind)}',
+          onSave: _save,
         ),
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
@@ -188,14 +205,12 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             ),
           ),
         ),
-        _DialogFooter(onSave: _save),
       ],
     );
   }
 
   Widget _body(BuildContext context) => switch (widget.kind) {
     EmployeeRecordKind.address => _grid([
-      _text('line', 'Address line', 'Street, building, floor', required: true),
       _dropdown(
         keyName: 'country',
         label: 'Country',
@@ -211,6 +226,14 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         label: 'City',
         onOpen: () => controller.cities(_ids['country'] ?? ''),
         required: true,
+      ),
+      _text(
+        'line',
+        'Address',
+        'Street, building, floor',
+        required: true,
+        lines: 2,
+        fullWidth: true,
       ),
     ]),
     EmployeeRecordKind.nationality => _grid([
@@ -464,14 +487,12 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
 
   _GridField _date(String key, String label, {bool required = false}) {
     return _GridField(
-      child: AppTextFormField(
+      child: AppDateFormField(
         label: label,
-        hintText: 'YYYY-MM-DD',
         controller: _fields[key]!,
         validator: required ? controller.requiredText : null,
-        readOnly: true,
-        onTap: () => _pickDate(key),
-        suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+        firstDate: DateTime(1940),
+        lastDate: DateTime(2200),
       ),
     );
   }
@@ -515,36 +536,20 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   }
 
   Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.softSurface,
-        border: Border.all(color: AppColors.border),
+    return Material(
+      color: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.border),
         borderRadius: BorderRadius.circular(AppRadii.field),
       ),
       child: SwitchListTile.adaptive(
-        contentPadding: EdgeInsets.zero,
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         title: Text(label, style: AppTextStyles.checkboxLabel),
         value: value,
         onChanged: onChanged,
       ),
     );
-  }
-
-  Future<void> _pickDate(String key) async {
-    final initial = DateTime.tryParse(_fields[key]!.text) ?? DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1940),
-      lastDate: DateTime(2200),
-    );
-    if (picked != null) {
-      _fields[key]!.text = EmployeesController.formatDate(picked);
-    }
   }
 
   Future<void> _save() async {
@@ -749,10 +754,11 @@ class _GridField {
   final bool fullWidth;
 }
 
-class _DialogHeader extends StatelessWidget {
-  const _DialogHeader({required this.title});
+class _DialogHeader extends GetView<EmployeesController> {
+  const _DialogHeader({required this.title, required this.onSave});
 
   final String title;
+  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -762,7 +768,7 @@ class _DialogHeader extends StatelessWidget {
         vertical: AppSpacing.md,
       ),
       decoration: const BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.mainCanvas,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -770,40 +776,14 @@ class _DialogHeader extends StatelessWidget {
           Expanded(
             child: Text(title, style: AppTextStyles.heading(fontSize: 20)),
           ),
-          IconButton(
-            tooltip: 'Close',
-            onPressed: () => Navigator.of(context).pop(false),
-            icon: const Icon(Icons.close_rounded),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DialogFooter extends GetView<EmployeesController> {
-  const _DialogFooter({required this.onSave});
-
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(foregroundColor: AppColors.textHint),
-            child: const Text('Cancel'),
+          Obx(
+            () => TextButton(
+              onPressed: controller.isSaving.value
+                  ? null
+                  : () => Navigator.of(context).pop(false),
+              style: TextButton.styleFrom(foregroundColor: AppColors.textHint),
+              child: const Text('Close'),
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Obx(

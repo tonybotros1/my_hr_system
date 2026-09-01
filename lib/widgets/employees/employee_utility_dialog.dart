@@ -23,12 +23,17 @@ Future<void> showEmployeeUtilityDialog(
   }
   if (!context.mounted) return;
   final screen = MediaQuery.sizeOf(context);
+  final navigator = Navigator.of(context, rootNavigator: true);
   final history = BrowserDialogHistory.open(() {
-    if (Get.isDialogOpen == true) Get.back<void>();
+    if (navigator.canPop()) navigator.pop<void>();
   });
   try {
-    await Get.dialog<void>(
-      Dialog(
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.xs),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -40,8 +45,6 @@ Future<void> showEmployeeUtilityDialog(
           child: _EmployeeUtilityBody(kind: kind),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();

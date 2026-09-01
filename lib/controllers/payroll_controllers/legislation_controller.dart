@@ -255,21 +255,6 @@ class LegislationController extends GetxController {
     if (incomeTaxBrackets.isEmpty) addIncomeTaxBracket();
   }
 
-  Future<void> selectDate(
-    BuildContext context,
-    TextEditingController target,
-  ) async {
-    final initial = parseLegislationDate(target.text) ?? DateTime.now();
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2200, 12, 31),
-      helpText: 'Select effective date',
-    );
-    if (selected != null) target.text = formatLegislationDate(selected);
-  }
-
   Future<bool> saveLegislation() async {
     if (isSaving.value || !(formKey.currentState?.validate() ?? false)) {
       return false;

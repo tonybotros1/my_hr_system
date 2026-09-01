@@ -10,6 +10,7 @@ import '../../models/employees/employee_model.dart';
 import '../../services/browser_dialog_history.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
+import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
 
 Future<void> showEmployeeDocumentsDialog(BuildContext context) async {
@@ -17,12 +18,17 @@ Future<void> showEmployeeDocumentsDialog(BuildContext context) async {
   await controller.loadAttachments();
   if (!context.mounted) return;
   final screen = MediaQuery.sizeOf(context);
+  final navigator = Navigator.of(context, rootNavigator: true);
   final history = BrowserDialogHistory.open(() {
-    if (Get.isDialogOpen == true) Get.back<void>();
+    if (navigator.canPop()) navigator.pop<void>();
   });
   try {
-    await Get.dialog<void>(
-      Dialog(
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.xs),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -34,8 +40,6 @@ Future<void> showEmployeeDocumentsDialog(BuildContext context) async {
           child: const _EmployeeDocumentsBody(),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();
@@ -90,7 +94,7 @@ class _EmployeeDocumentsBodyState extends State<_EmployeeDocumentsBody> {
               const SizedBox(width: AppSpacing.sm),
               IconButton(
                 tooltip: 'Close',
-                onPressed: Get.back<void>,
+                onPressed: () => Navigator.of(context).pop<void>(),
                 color: Colors.white,
                 icon: const Icon(Icons.close),
               ),
@@ -303,20 +307,23 @@ class _AttachmentRow extends StatelessWidget {
 }
 
 Future<void> _showAttachmentEditor(BuildContext context) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
   final history = BrowserDialogHistory.open(() {
-    if (Get.isDialogOpen == true) Get.back<void>();
+    if (navigator.canPop()) navigator.pop<void>();
   });
   try {
-    await Get.dialog<void>(
-      Dialog(
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.md),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 820, maxHeight: 650),
           child: const _AttachmentEditor(),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();
@@ -387,7 +394,7 @@ class _AttachmentEditorState extends State<_AttachmentEditor> {
               ),
               IconButton(
                 tooltip: 'Close',
-                onPressed: Get.back<void>,
+                onPressed: () => Navigator.of(context).pop<void>(),
                 color: Colors.white,
                 icon: const Icon(Icons.close),
               ),
@@ -523,26 +530,12 @@ class _AttachmentEditorState extends State<_AttachmentEditor> {
   );
 
   Widget _dateField(String label, TextEditingController field) =>
-      AppTextFormField(
+      AppDateFormField(
         label: label,
-        hintText: 'YYYY-MM-DD',
         controller: field,
-        readOnly: true,
-        onTap: () => _pickDate(field),
-        suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+        firstDate: DateTime(1940),
+        lastDate: DateTime(2200),
       );
-
-  Future<void> _pickDate(TextEditingController field) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.tryParse(field.text) ?? DateTime.now(),
-      firstDate: DateTime(1940),
-      lastDate: DateTime(2200),
-    );
-    if (picked != null) {
-      field.text = EmployeesController.formatDate(picked);
-    }
-  }
 
   Future<void> _pickFiles() async {
     final files = await controller.pickAttachmentFiles();

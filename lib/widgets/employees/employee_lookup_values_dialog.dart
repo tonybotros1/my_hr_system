@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 import '../../consts.dart';
 import '../../controllers/employee_controllers/employees_controller.dart';
@@ -20,8 +19,12 @@ Future<void> showEmployeeLookupValuesDialog(
     if (navigator.canPop()) navigator.pop<void>();
   });
   try {
-    await Get.dialog<void>(
-      Dialog(
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: AppColors.dialogScrim,
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.lg),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -41,8 +44,6 @@ Future<void> showEmployeeLookupValuesDialog(
           ),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
     );
   } finally {
     history.complete();
@@ -168,7 +169,7 @@ class _LookupValuesManagerState extends State<_LookupValuesManager> {
               ),
               IconButton(
                 tooltip: 'Close',
-                onPressed: Get.back<void>,
+                onPressed: () => Navigator.of(context).pop<void>(),
                 color: AppColors.surface,
                 icon: const Icon(Icons.close_rounded),
               ),
