@@ -199,6 +199,8 @@ class AppSizes {
   static const double employeeRecordDialogMediumWidth = 820;
   static const double employeeRecordDialogWideWidth = 980;
   static const double employeeAddressDialogWidth = 560;
+  static const double employeeLeaveDialogWidth = 700;
+  static const double employeeContactRelativeDialogWidth = 700;
 }
 
 class AppDurations {

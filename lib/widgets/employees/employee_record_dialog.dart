@@ -100,14 +100,14 @@ _RecordDialogLayout _layoutFor(EmployeeRecordKind kind) => switch (kind) {
     columns: 2,
   ),
   EmployeeRecordKind.leave => const _RecordDialogLayout(
-    width: AppSizes.employeeRecordDialogMediumWidth,
+    width: AppSizes.employeeLeaveDialogWidth,
     maxHeight: 540,
-    columns: 2,
+    columns: 3,
   ),
   EmployeeRecordKind.contactRelative => const _RecordDialogLayout(
-    width: AppSizes.employeeRecordDialogWideWidth,
+    width: AppSizes.employeeContactRelativeDialogWidth,
     maxHeight: 620,
-    columns: 3,
+    columns: 2,
   ),
 };
 
@@ -376,6 +376,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             label: 'Leave type',
             onOpen: controller.leaveTypes,
             required: true,
+            fullWidth: true,
           ),
           _date('start_date', 'Start date', required: true),
           _date('end_date', 'End date', required: true),
@@ -387,7 +388,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             keyboardType: TextInputType.number,
           ),
           _text('note', 'Note', 'Optional note', lines: 3, fullWidth: true),
-        ]),
+        ], threeColumnBreakpoint: 620),
         const SizedBox(height: AppSpacing.md),
         _toggle(
           'Pay in advance',
@@ -400,14 +401,19 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _grid([
-          _text('full_name', 'Full name', 'Full name', required: true),
+          _text(
+            'full_name',
+            'Full name',
+            'Full name',
+            required: true,
+            fullWidth: true,
+          ),
           _dropdown(
             keyName: 'relationship',
             label: 'Relationship',
             onOpen: () => controller.listValues('RELATIONSHIPS'),
             required: true,
           ),
-          _text('phone_number', 'Phone number', 'Phone number'),
           _dropdown(
             keyName: 'gender',
             label: 'Gender',
@@ -419,6 +425,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             label: 'Nationality',
             onOpen: () => controller.listValues('NATIONALITIES'),
           ),
+          _text('phone_number', 'Phone number', 'Phone number'),
           _text(
             'email_address',
             'Email address',
@@ -437,10 +444,10 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     ),
   };
 
-  Widget _grid(List<_GridField> fields) {
+  Widget _grid(List<_GridField> fields, {double threeColumnBreakpoint = 740}) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 740
+        final columns = constraints.maxWidth >= threeColumnBreakpoint
             ? widget.preferredColumns
             : constraints.maxWidth >= 520
             ? math.min(2, widget.preferredColumns)
@@ -504,9 +511,11 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     String displayKey = 'name',
     String? fallbackDisplayKey,
     bool required = false,
+    bool fullWidth = false,
     ValueChanged<Map<String, dynamic>>? onSelected,
   }) {
     return _GridField(
+      fullWidth: fullWidth,
       child: LayoutBuilder(
         builder: (context, constraints) => CustomDropdown(
           width: constraints.maxWidth,

@@ -237,4 +237,105 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
   }, skip: kIsWeb);
+
+  testWidgets('leave editor is compact and keeps dates on one row', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.leave,
+              ),
+              child: const Text('Open leave'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open leave'));
+    await tester.pumpAndSettle();
+
+    final dialogSize = tester.getSize(
+      find.byKey(const ValueKey('employee-record-dialog-content')),
+    );
+    expect(dialogSize.width, lessThanOrEqualTo(700));
+
+    final leaveTypeY = tester.getTopLeft(find.text('Leave type').first).dy;
+    final startDateY = tester.getTopLeft(find.text('Start date').first).dy;
+    final endDateY = tester.getTopLeft(find.text('End date').first).dy;
+    final numberOfDaysY = tester
+        .getTopLeft(find.text('Number of days').first)
+        .dy;
+    final noteY = tester.getTopLeft(find.text('Note').first).dy;
+
+    expect(leaveTypeY, lessThan(startDateY));
+    expect(startDateY, closeTo(endDateY, 0.1));
+    expect(startDateY, closeTo(numberOfDaysY, 0.1));
+    expect(noteY, greaterThan(startDateY));
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
+  testWidgets('contact editor is compact and uses the requested field rows', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.contactRelative,
+              ),
+              child: const Text('Open contact'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open contact'));
+    await tester.pumpAndSettle();
+
+    final dialogSize = tester.getSize(
+      find.byKey(const ValueKey('employee-record-dialog-content')),
+    );
+    expect(dialogSize.width, lessThanOrEqualTo(700));
+
+    final fullNameY = tester.getTopLeft(find.text('Full name').first).dy;
+    final relationshipY = tester.getTopLeft(find.text('Relationship').first).dy;
+    final genderY = tester.getTopLeft(find.text('Gender').first).dy;
+    final dateOfBirthY = tester.getTopLeft(find.text('Date of birth').first).dy;
+    final nationalityY = tester.getTopLeft(find.text('Nationality').first).dy;
+    final phoneY = tester.getTopLeft(find.text('Phone number').first).dy;
+    final emailY = tester.getTopLeft(find.text('Email address').first).dy;
+    final noteY = tester.getTopLeft(find.text('Note').first).dy;
+
+    expect(fullNameY, lessThan(relationshipY));
+    expect(relationshipY, closeTo(genderY, 0.1));
+    expect(dateOfBirthY, closeTo(nationalityY, 0.1));
+    expect(dateOfBirthY, greaterThan(relationshipY));
+    expect(phoneY, closeTo(emailY, 0.1));
+    expect(phoneY, greaterThan(dateOfBirthY));
+    expect(noteY, greaterThan(phoneY));
+    expect(find.text('Emergency contact'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
 }
