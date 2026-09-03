@@ -93,11 +93,15 @@ _RecordDialogLayout _layoutFor(EmployeeRecordKind kind) => switch (kind) {
     maxHeight: 460,
     columns: 2,
   ),
-  EmployeeRecordKind.payrollElement ||
+  EmployeeRecordKind.payrollElement => const _RecordDialogLayout(
+    width: AppSizes.employeePayrollElementDialogWidth,
+    maxHeight: 620,
+    columns: 1,
+  ),
   EmployeeRecordKind.loanAdvance => const _RecordDialogLayout(
-    width: AppSizes.employeeRecordDialogMediumWidth,
-    maxHeight: 455,
-    columns: 2,
+    width: AppSizes.employeeLoanAdvanceDialogWidth,
+    maxHeight: 620,
+    columns: 1,
   ),
   EmployeeRecordKind.leave => const _RecordDialogLayout(
     width: AppSizes.employeeLeaveDialogWidth,

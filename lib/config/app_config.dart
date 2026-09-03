@@ -5,7 +5,7 @@ class AppConfig {
   /// `--dart-define=BACKEND_URL=https://your-api.example.com`
   static const String backendBaseUrl = String.fromEnvironment(
     'BACKEND_URL',
-    defaultValue: 'http://192.168.1.10:8000',
+    defaultValue: 'http://192.168.1.23:8000',
   );
 
   static const Duration requestTimeout = Duration(seconds: 20);

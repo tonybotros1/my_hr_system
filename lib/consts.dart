@@ -198,9 +198,26 @@ class AppSizes {
   static const double employeeRecordDialogSmallWidth = 640;
   static const double employeeRecordDialogMediumWidth = 820;
   static const double employeeRecordDialogWideWidth = 980;
+  static const double employeePayrollElementDialogWidth = 500;
+  static const double employeeLoanAdvanceDialogWidth = 500;
   static const double employeeAddressDialogWidth = 560;
   static const double employeeLeaveDialogWidth = 700;
   static const double employeeContactRelativeDialogWidth = 700;
+  static const double employeeAttachmentEditorDialogWidth = 1040;
+  static const double employeeAttachmentEditorDialogHeight = 680;
+  static const double employeeAttachmentEditorTwoColumnBreakpoint = 620;
+  static const double employeeAttachmentPickerPreviewSize = 52;
+  static const double employeeAttachmentFilesDialogWidth = 700;
+  static const double employeeAttachmentFilesDialogHeight = 500;
+}
+
+/// Shared functional limits that must stay consistent across the app.
+class AppLimits {
+  AppLimits._();
+
+  static const int employeeAttachmentMaxFileSizeMb = 50;
+  static const int employeeAttachmentMaxFileBytes =
+      employeeAttachmentMaxFileSizeMb * 1024 * 1024;
 }
 
 class AppDurations {
@@ -232,7 +249,6 @@ class AppGradients {
   );
 }
 
-double textFieldHeight = 35;
 TextStyle textFieldFontStyle = const TextStyle(
   fontSize: 14,
   color: Colors.black,
@@ -543,6 +559,20 @@ class AppButtonStyles {
     minimumSize: const Size(0, 40),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     textStyle: AppTextStyles.link,
+  );
+
+  static final tableOpen = FilledButton.styleFrom(
+    minimumSize: const Size(86, AppSizes.inputMinHeight),
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+    elevation: 0,
+    backgroundColor: AppColors.primaryLight,
+    foregroundColor: AppColors.primaryDark,
+    disabledBackgroundColor: AppColors.segmentBackground,
+    disabledForegroundColor: AppColors.textHint,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadii.navigationItem),
+    ),
+    textStyle: AppTextStyles.link.copyWith(fontSize: 12),
   );
 }
 

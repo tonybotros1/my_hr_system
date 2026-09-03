@@ -25,7 +25,11 @@ class BrowserDialogHistory {
     _ensureListening();
     final entry = _DialogHistoryEntry(++_nextId, onBrowserBack);
     _entries.add(entry);
-    if (!_hasHistoryEntry) _pushHistoryEntry(entry.id);
+    if (_currentEntryIsSynthetic()) {
+      _hasHistoryEntry = true;
+    } else {
+      _pushHistoryEntry(entry.id);
+    }
     return BrowserDialogHistoryHandle._(entry);
   }
 
@@ -38,23 +42,29 @@ class BrowserDialogHistory {
     _hasHistoryEntry = true;
   }
 
+  static bool _currentEntryIsSynthetic() {
+    final state = web.window.history.state;
+    if (state == null) return false;
+    final dartState = state.dartify();
+    return dartState is Map && dartState['appDialog'] != null;
+  }
+
   static void _ensureListening() {
     if (_popStateListener != null) return;
     _popStateListener = ((web.Event _) {
+      _hasHistoryEntry = _currentEntryIsSynthetic();
       if (_ignoredPopStates > 0) {
         _ignoredPopStates--;
-        _hasHistoryEntry = false;
-        if (_entries.isNotEmpty) {
+        if (_entries.isNotEmpty && !_hasHistoryEntry) {
           _pushHistoryEntry(_entries.last.id);
         }
         return;
       }
       if (_entries.isEmpty) return;
-      _hasHistoryEntry = false;
       final entry = _entries.removeLast();
       entry.wasClosedByBrowser = true;
       entry.onBrowserBack();
-      if (_entries.isNotEmpty) {
+      if (_entries.isNotEmpty && !_hasHistoryEntry) {
         _pushHistoryEntry(_entries.last.id);
       }
     }).toJS;
@@ -66,9 +76,14 @@ class BrowserDialogHistory {
     final index = _entries.indexOf(entry);
     if (index < 0) return;
     _entries.removeAt(index);
-    if (_entries.isEmpty && _hasHistoryEntry) {
-      _ignoredPopStates++;
-      web.window.history.back();
+    _hasHistoryEntry = _currentEntryIsSynthetic();
+    if (_entries.isEmpty) {
+      if (_hasHistoryEntry) {
+        _ignoredPopStates++;
+        web.window.history.back();
+      }
+    } else if (!_hasHistoryEntry) {
+      _pushHistoryEntry(_entries.last.id);
     }
   }
 }

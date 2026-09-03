@@ -1,16 +1,45 @@
+import 'dart:convert';
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:my_hr_system/consts.dart';
 import 'package:my_hr_system/controllers/employee_controllers/employees_controller.dart';
 import 'package:my_hr_system/models/employees/employee_model.dart';
+import 'package:my_hr_system/routes/app_routes.dart';
+import 'package:my_hr_system/widgets/employees/employee_documents_dialog.dart';
 import 'package:my_hr_system/widgets/employees/employee_lookup_values_dialog.dart';
 import 'package:my_hr_system/widgets/employees/employee_record_dialog.dart';
+import 'package:my_hr_system/widgets/employees/employee_workspace_dialog.dart';
 
 class _EmployeesControllerStub extends EmployeesController {
   @override
   Future<void> loadEmployees({bool filtered = false}) async {}
+
+  @override
+  Future<void> loadAttachments() async {
+    attachments.assignAll([
+      const EmployeeAttachment(
+        id: 'attachment-1',
+        name: 'Passport',
+        typeId: 'type-1',
+        typeName: 'Identity document',
+        number: 'P123456',
+        note: 'Employee passport',
+        files: [
+          EmployeeAttachmentFile(
+            name: 'passport.pdf',
+            url: 'https://example.com/passport.pdf',
+            resourceType: 'raw',
+            format: 'pdf',
+          ),
+        ],
+      ),
+    ]);
+  }
 
   @override
   Future<Map<String, dynamic>> listValues(
@@ -19,10 +48,134 @@ class _EmployeesControllerStub extends EmployeesController {
   }) async => {
     'employer-1': {'_id': 'employer-1', 'name': 'DataHub AI'},
   };
+
+  @override
+  Future<Map<String, List<int>>> pickAttachmentFiles() async => {
+    'employee.png': base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ),
+    'contract.pdf': [37, 80, 68, 70],
+    'too-large.zip': _SizedByteList(
+      AppLimits.employeeAttachmentMaxFileBytes + 1,
+    ),
+  };
+}
+
+class _SizedByteList extends ListBase<int> {
+  _SizedByteList(this._length);
+
+  final int _length;
+
+  @override
+  int get length => _length;
+
+  @override
+  set length(int value) => throw UnsupportedError('Fixed test list');
+
+  @override
+  int operator [](int index) => 0;
+
+  @override
+  void operator []=(int index, int value) =>
+      throw UnsupportedError('Read-only test list');
 }
 
 void main() {
   tearDown(Get.reset);
+
+  testWidgets('browser-style back closes the employee workspace route', (
+    tester,
+  ) async {
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        initialRoute: '/employee-list',
+        getPages: [
+          GetPage(
+            name: '/employee-list',
+            page: () => Builder(
+              builder: (context) => Scaffold(
+                body: FilledButton(
+                  onPressed: () {
+                    Get.find<EmployeesController>().beginNewEmployee();
+                    showEmployeeWorkspaceDialog(context);
+                  },
+                  child: const Text('Open employee'),
+                ),
+              ),
+            ),
+          ),
+          GetPage(
+            name: AppRoutes.employeeWorkspace,
+            page: () => const EmployeeWorkspaceRoute(),
+            fullscreenDialog: true,
+            opaque: false,
+            transition: Transition.noTransition,
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(find.text('Open employee'));
+    await tester.pumpAndSettle();
+    expect(Get.currentRoute, AppRoutes.employeeWorkspace);
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byTooltip('Close employee workspace'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(Get.currentRoute, '/employee-list');
+    expect(find.text('Open employee'), findsOneWidget);
+    expect(find.byTooltip('Close employee workspace'), findsNothing);
+  });
+
+  testWidgets('repeated open requests keep one employee workspace route', (
+    tester,
+  ) async {
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        initialRoute: '/employee-list',
+        getPages: [
+          GetPage(
+            name: '/employee-list',
+            page: () => Builder(
+              builder: (context) => Scaffold(
+                body: FilledButton(
+                  onPressed: () {
+                    showEmployeeWorkspaceDialog(context);
+                    showEmployeeWorkspaceDialog(context);
+                  },
+                  child: const Text('Open employee twice'),
+                ),
+              ),
+            ),
+          ),
+          GetPage(
+            name: AppRoutes.employeeWorkspace,
+            page: () => const EmployeeWorkspaceRoute(),
+            fullscreenDialog: true,
+            opaque: false,
+            transition: Transition.noTransition,
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(find.text('Open employee twice'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(Get.currentRoute, AppRoutes.employeeWorkspace);
+    expect(find.byType(EmployeeWorkspaceRoute), findsOneWidget);
+    expect(find.byType(Form), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(Get.currentRoute, '/employee-list');
+  });
 
   testWidgets('closing a nested employee editor keeps its parent dialog open', (
     tester,
@@ -286,6 +439,100 @@ void main() {
     await tester.pumpAndSettle();
   }, skip: kIsWeb);
 
+  testWidgets('payroll element editor is 500 pixels and one column', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.payrollElement,
+              ),
+              child: const Text('Open payroll element'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open payroll element'));
+    await tester.pumpAndSettle();
+
+    final dialogSize = tester.getSize(
+      find.byKey(const ValueKey('employee-record-dialog-content')),
+    );
+    expect(dialogSize.width, closeTo(500, 0.1));
+
+    final payrollElementY = tester.getTopLeft(find.text('Payroll element')).dy;
+    final valueY = tester.getTopLeft(find.text('Value')).dy;
+    final startDateY = tester.getTopLeft(find.text('Start date')).dy;
+    final endDateY = tester.getTopLeft(find.text('End date')).dy;
+    final noteY = tester.getTopLeft(find.text('Note')).dy;
+    expect(payrollElementY, lessThan(valueY));
+    expect(valueY, lessThan(startDateY));
+    expect(startDateY, lessThan(endDateY));
+    expect(endDateY, lessThan(noteY));
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
+  testWidgets('loan and advance editor is 500 pixels and one column', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.loanAdvance,
+              ),
+              child: const Text('Open loan and advance'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open loan and advance'));
+    await tester.pumpAndSettle();
+
+    final dialogSize = tester.getSize(
+      find.byKey(const ValueKey('employee-record-dialog-content')),
+    );
+    expect(dialogSize.width, closeTo(500, 0.1));
+
+    final fieldLabels = [
+      'Loan / advance type',
+      'Total amount',
+      'Monthly installment',
+      'Deduction date',
+      'Note',
+    ];
+    final fieldPositions = fieldLabels
+        .map((label) => tester.getTopLeft(find.text(label).first).dy)
+        .toList(growable: false);
+    for (var index = 1; index < fieldPositions.length; index++) {
+      expect(fieldPositions[index], greaterThan(fieldPositions[index - 1]));
+    }
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
   testWidgets('contact editor is compact and uses the requested field rows', (
     tester,
   ) async {
@@ -337,5 +584,123 @@ void main() {
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
+  testWidgets('document table opens files in a themed file list', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeDocumentsDialog(context),
+              child: const Text('Open documents'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open documents'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Document of Record'), findsOneWidget);
+    expect(find.text('passport.pdf'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Open'), findsOneWidget);
+
+    tester
+        .widget<FilledButton>(find.widgetWithText(FilledButton, 'Open'))
+        .onPressed!();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Files'), findsOneWidget);
+    expect(find.text('Images'), findsOneWidget);
+    expect(find.text('Other Files'), findsOneWidget);
+    expect(find.text('passport.pdf'), findsOneWidget);
+    expect(find.text('PDF file'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close files'));
+    await tester.pumpAndSettle();
+    expect(find.text('Files'), findsNothing);
+    expect(find.text('Document of Record'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
+  testWidgets('new document record uses two columns and previews files', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeDocumentsDialog(context),
+              child: const Text('Open documents'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open documents'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New Record'));
+    await tester.pumpAndSettle();
+
+    final detailsTopLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('employee-attachment-details-column')),
+    );
+    final uploadTopLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('employee-attachment-upload-column')),
+    );
+    expect(uploadTopLeft.dx, greaterThan(detailsTopLeft.dx));
+
+    final nameY = tester.getTopLeft(find.text('Name')).dy;
+    final typeY = tester.getTopLeft(find.text('Type')).dy;
+    final numberY = tester.getTopLeft(find.text('Number')).dy;
+    final startDateY = tester.getTopLeft(find.text('Start Date')).dy;
+    final endDateY = tester.getTopLeft(find.text('End Date')).dy;
+    final notesY = tester.getTopLeft(find.text('Notes')).dy;
+    expect(nameY, lessThan(typeY));
+    expect(typeY, closeTo(numberY, 0.1));
+    expect(startDateY, closeTo(endDateY, 0.1));
+    expect(startDateY, greaterThan(typeY));
+    expect(notesY, greaterThan(startDateY));
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('employee-attachment-notes-field')),
+          )
+          .height,
+      greaterThan(180),
+    );
+
+    await tester.tap(find.text('Choose files'));
+    await tester.pumpAndSettle();
+    expect(find.text('File too large'), findsOneWidget);
+    expect(find.textContaining('50 MB or smaller'), findsOneWidget);
+    expect(find.text('too-large.zip'), findsNothing);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('employee.png'), findsOneWidget);
+    expect(find.text('contract.pdf'), findsOneWidget);
+    expect(find.byType(Image), findsWidgets);
+    expect(find.byIcon(Icons.picture_as_pdf_outlined), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Remove contract.pdf'));
+    await tester.pumpAndSettle();
+    expect(find.text('contract.pdf'), findsNothing);
+    expect(find.text('employee.png'), findsOneWidget);
   }, skip: kIsWeb);
 }

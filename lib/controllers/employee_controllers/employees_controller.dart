@@ -27,6 +27,7 @@ class EmployeesController extends GetxController {
   final isSaving = false.obs;
   final isDeleting = ''.obs;
   final isUtilityLoading = false.obs;
+  final isLoadingPeriod = false.obs;
   final isLoadingAttachments = false.obs;
   final isSavingAttachment = false.obs;
   final selectedType = 'ALL'.obs;
@@ -44,7 +45,6 @@ class EmployeesController extends GetxController {
   final jobTitleFilterId = ''.obs;
   final locationFilterId = ''.obs;
 
-  final formKey = GlobalKey<FormState>();
   final fullName = TextEditingController();
   final countryOfBirth = TextEditingController();
   final placeOfBirth = TextEditingController();
@@ -158,6 +158,7 @@ class EmployeesController extends GetxController {
       payrollElements.assignAll(details.payrollElements);
       assignmentBalances.assignAll(details.assignmentBalances);
       _populateEditor(details);
+      await setPeriod(selectedPeriod.value);
       return true;
     } on ApiRequestException catch (error) {
       await _showError('Could not open employee', error.message);
@@ -182,7 +183,7 @@ class EmployeesController extends GetxController {
     _clearEditor();
   }
 
-  Future<bool> saveEmployee() async {
+  Future<bool> saveEmployee(GlobalKey<FormState> formKey) async {
     if (isSaving.value || formKey.currentState?.validate() != true) {
       return false;
     }
@@ -265,33 +266,47 @@ class EmployeesController extends GetxController {
 
   Future<void> setPeriod(String period) async {
     selectedPeriod.value = period;
+    if (!isEditing || isLoadingPeriod.value) return;
+    isLoadingPeriod.value = true;
+    try {
+      await Future.wait([
+        filterEmployeePayrollElementsByPeriod(period),
+        getEmployeeBalances(period),
+      ]);
+    } finally {
+      isLoadingPeriod.value = false;
+    }
+  }
+
+  Future<void> filterEmployeePayrollElementsByPeriod(String period) async {
     if (!isEditing) return;
     try {
-      final responses = await Future.wait([
-        _api.postJson(
-          '/employees/filter_employee_payrolls_on_period_date/$currentEmployeeId',
-          body: {'period': period},
-        ),
-        _api.postJson(
-          '/employees/get_assignment_balances_depending_on_period/$currentEmployeeId',
-          body: {'period_date': period},
-        ),
-      ]);
+      final response = await _api.postJson(
+        '/employees/filter_employee_payrolls_on_period_date/$currentEmployeeId',
+        body: {'period': period},
+      );
       payrollElements.assignAll(
-        EmployeeRecord.list(
-          responses[0]['payrolls'] ??
-              responses[0]['payrolls_elements'] ??
-              responses[0]['employee_payrolls'] ??
-              responses[0]['all_payrolls'],
-        ),
+        EmployeeRecord.list(response['payrolls_elements']),
       );
-      assignmentBalances.assignAll(
-        EmployeeRecord.list(
-          responses[1]['balances'] ?? responses[1]['assignment_balances'],
-        ),
-      );
+    } on SessionExpiredException {
+      Get.offAllNamed('/loginScreen');
     } on ApiRequestException catch (error) {
-      await _showError('Could not change period', error.message);
+      await _showError('Could not load payroll elements', error.message);
+    }
+  }
+
+  Future<void> getEmployeeBalances(String period) async {
+    if (!isEditing) return;
+    try {
+      final response = await _api.postJson(
+        '/employees/get_assignment_balances_depending_on_period/$currentEmployeeId',
+        body: {'period_date': period},
+      );
+      assignmentBalances.assignAll(EmployeeRecord.list(response['balances']));
+    } on SessionExpiredException {
+      Get.offAllNamed('/loginScreen');
+    } on ApiRequestException catch (error) {
+      await _showError('Could not load assignment balances', error.message);
     }
   }
 
@@ -310,10 +325,19 @@ class EmployeesController extends GetxController {
   }
 
   List<EmployeeRecord> recordsFor(EmployeeRecordKind kind) {
-    if (kind == EmployeeRecordKind.payrollElement) return payrollElements;
-    if (kind == EmployeeRecordKind.leave) return leaves;
-    if (kind == EmployeeRecordKind.contactRelative) return contacts;
-    return selectedEmployee.value?.recordsFor(kind) ?? const [];
+    if (kind == EmployeeRecordKind.payrollElement) {
+      return payrollElements.toList(growable: false);
+    }
+    if (kind == EmployeeRecordKind.leave) {
+      return leaves.toList(growable: false);
+    }
+    if (kind == EmployeeRecordKind.contactRelative) {
+      return contacts.toList(growable: false);
+    }
+    return List<EmployeeRecord>.of(
+      selectedEmployee.value?.recordsFor(kind) ?? const [],
+      growable: false,
+    );
   }
 
   Future<bool> saveRecord(

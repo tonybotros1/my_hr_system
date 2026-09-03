@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -541,6 +543,130 @@ void main() {
     expect(requestCount, 1);
   });
 
+  test(
+    'employee period filter refreshes payroll elements and balances separately',
+    () async {
+      SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+      final requestBodies = <String, Map<String, dynamic>>{};
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        requestBodies[request.url.path] = Map<String, dynamic>.from(
+          jsonDecode(request.body) as Map,
+        );
+        if (request.url.path ==
+            '/employees/filter_employee_payrolls_on_period_date/employee-1') {
+          return http.Response(
+            '{"payrolls_elements":[{"_id":"element-1","name_value":"Basic Salary","value":5000}]}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path ==
+            '/employees/get_assignment_balances_depending_on_period/employee-1') {
+          return http.Response(
+            '{"balances":[{"_id":"balance-1","name":"Annual Leave","balance":12.5}]}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('Not found', 404);
+      });
+      final controller = EmployeesController(
+        api: AuthenticatedApiService(
+          httpClient: client,
+          session: AuthSessionService(),
+        ),
+      );
+      controller.selectedEmployee.value = EmployeeDetails.fromJson({
+        '_id': 'employee-1',
+        'full_name': 'Paul Admin',
+        'hire_date': '2026-01-01T00:00:00.000Z',
+      });
+      controller.hireDate.text = '2026-01-01';
+
+      await controller.setPeriod('2026-06');
+
+      expect(controller.selectedPeriod.value, '2026-06');
+      expect(
+        controller.payrollElements.single.text('name_value'),
+        'Basic Salary',
+      );
+      expect(controller.assignmentBalances.single.number('balance'), 12.5);
+      expect(
+        requestBodies['/employees/filter_employee_payrolls_on_period_date/employee-1'],
+        {'period': '2026-06'},
+      );
+      expect(
+        requestBodies['/employees/get_assignment_balances_depending_on_period/employee-1'],
+        {'period_date': '2026-06'},
+      );
+      expect(controller.availablePeriods, contains('2026-06'));
+      expect(controller.isLoadingPeriod.value, isFalse);
+    },
+  );
+
+  testWidgets('employee period filter rebuilds the visible payroll rows', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+    final client = MockClient((request) async {
+      final body = Map<String, dynamic>.from(jsonDecode(request.body) as Map);
+      if (request.url.path ==
+          '/employees/filter_employee_payrolls_on_period_date/employee-1') {
+        final period = body['period'] as String;
+        return http.Response(
+          '{"payrolls_elements":[{"_id":"$period","name_value":"$period payroll"}]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.url.path ==
+          '/employees/get_assignment_balances_depending_on_period/employee-1') {
+        return http.Response(
+          '{"balances":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not found', 404);
+    });
+    final controller = EmployeesController(
+      api: AuthenticatedApiService(
+        httpClient: client,
+        session: AuthSessionService(),
+      ),
+    );
+    controller.selectedEmployee.value = EmployeeDetails.fromJson({
+      '_id': 'employee-1',
+      'full_name': 'Paul Admin',
+      'hire_date': '2026-01-01T00:00:00.000Z',
+    });
+    controller.payrollElements.assignAll([
+      const EmployeeRecord({'_id': 'initial', 'name_value': 'Initial payroll'}),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Obx(
+          () => _PayrollRowsProbe(
+            records: controller.recordsFor(EmployeeRecordKind.payrollElement),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Initial payroll'), findsOneWidget);
+
+    await controller.setPeriod('2026-04');
+    await tester.pumpAndSettle();
+    expect(find.text('2026-04 payroll'), findsOneWidget);
+    expect(find.text('Initial payroll'), findsNothing);
+
+    await controller.setPeriod('2026-05');
+    await tester.pumpAndSettle();
+    expect(find.text('2026-05 payroll'), findsOneWidget);
+    expect(find.text('2026-04 payroll'), findsNothing);
+  });
+
   test('employee employment values are added through list-values API', () async {
     SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
     var valuesRequestCount = 0;
@@ -655,4 +781,15 @@ void main() {
     expect(await api.patchJson('/patch-test'), isEmpty);
     expect(await api.deleteJson('/delete-test'), isEmpty);
   });
+}
+
+class _PayrollRowsProbe extends StatelessWidget {
+  const _PayrollRowsProbe({required this.records});
+
+  final List<EmployeeRecord> records;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(records.map((record) => record.text('name_value')).join(','));
+  }
 }

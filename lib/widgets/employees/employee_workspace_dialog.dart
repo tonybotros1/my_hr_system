@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../../consts.dart';
 import '../../controllers/employee_controllers/employees_controller.dart';
 import '../../models/employees/employee_model.dart';
+import '../../routes/app_routes.dart';
 import '../../services/browser_dialog_history.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
@@ -18,39 +19,57 @@ import 'employee_documents_dialog.dart';
 import 'employee_lookup_values_dialog.dart';
 import 'employee_utility_dialog.dart';
 
+bool _employeeWorkspaceRouteActive = false;
+
 Future<void> showEmployeeWorkspaceDialog(BuildContext context) async {
-  final navigator = Navigator.of(context, rootNavigator: true);
-  final history = BrowserDialogHistory.open(() {
-    if (navigator.canPop()) navigator.pop<void>();
-  });
+  if (_employeeWorkspaceRouteActive ||
+      Get.currentRoute == AppRoutes.employeeWorkspace) {
+    return;
+  }
+  _employeeWorkspaceRouteActive = true;
   try {
-    await showDialog<void>(
-      context: context,
-      useRootNavigator: true,
-      barrierDismissible: false,
-      barrierColor: AppColors.dialogScrim,
-      builder: (dialogContext) => Dialog(
+    await Get.toNamed<void>(AppRoutes.employeeWorkspace);
+  } finally {
+    _employeeWorkspaceRouteActive = false;
+  }
+}
+
+class EmployeeWorkspaceRoute extends StatefulWidget {
+  const EmployeeWorkspaceRoute({super.key});
+
+  @override
+  State<EmployeeWorkspaceRoute> createState() => _EmployeeWorkspaceRouteState();
+}
+
+class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.dialogScrim,
+      child: Dialog(
         insetPadding: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
         backgroundColor: AppColors.mainCanvas,
         shape: const RoundedRectangleBorder(),
-        child: const SizedBox.expand(
+        child: SizedBox.expand(
           child: Column(
             children: [
-              _WorkspaceHeader(),
-              Expanded(child: _WorkspaceBody()),
+              _WorkspaceHeader(formKey: _formKey),
+              Expanded(child: _WorkspaceBody(formKey: _formKey)),
             ],
           ),
         ),
       ),
     );
-  } finally {
-    history.complete();
   }
 }
 
 class _WorkspaceHeader extends GetView<EmployeesController> {
-  const _WorkspaceHeader();
+  const _WorkspaceHeader({required this.formKey});
+
+  final GlobalKey<FormState> formKey;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +112,12 @@ class _WorkspaceHeader extends GetView<EmployeesController> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: current,
+                      icon: controller.isLoadingPeriod.value
+                          ? const SizedBox.square(
+                              dimension: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.arrow_drop_down_rounded),
                       items: periods
                           .map(
                             (period) => DropdownMenuItem(
@@ -101,16 +126,20 @@ class _WorkspaceHeader extends GetView<EmployeesController> {
                             ),
                           )
                           .toList(growable: false),
-                      onChanged: (value) {
-                        if (value != null) controller.setPeriod(value);
-                      },
+                      onChanged: controller.isLoadingPeriod.value
+                          ? null
+                          : (value) async {
+                              if (value != null) {
+                                await controller.setPeriod(value);
+                              }
+                            },
                     ),
                   ),
                 );
               }),
             ],
           );
-          final actions = _WorkspaceActions(compact: compact);
+          final actions = _WorkspaceActions(compact: compact, formKey: formKey);
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,9 +158,10 @@ class _WorkspaceHeader extends GetView<EmployeesController> {
 }
 
 class _WorkspaceActions extends GetView<EmployeesController> {
-  const _WorkspaceActions({required this.compact});
+  const _WorkspaceActions({required this.compact, required this.formKey});
 
   final bool compact;
+  final GlobalKey<FormState> formKey;
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +172,7 @@ class _WorkspaceActions extends GetView<EmployeesController> {
         TextButton(
           onPressed: controller.isSaving.value
               ? null
-              : () => controller.saveEmployee(),
+              : () => controller.saveEmployee(formKey),
           style: TextButton.styleFrom(
             foregroundColor: buttonColor,
             disabledForegroundColor: Colors.white54,
@@ -184,9 +214,7 @@ class _WorkspaceActions extends GetView<EmployeesController> {
         _HeaderDivider(compact: compact),
         IconButton(
           tooltip: 'Close employee workspace',
-          onPressed: controller.isSaving.value
-              ? null
-              : () => Navigator.of(context).pop(),
+          onPressed: controller.isSaving.value ? null : () => Get.back<void>(),
           style: IconButton.styleFrom(foregroundColor: Colors.white),
           icon: const Icon(Icons.close_rounded),
         ),
@@ -250,7 +278,9 @@ class _HeaderDot extends StatelessWidget {
 }
 
 class _WorkspaceBody extends StatefulWidget {
-  const _WorkspaceBody();
+  const _WorkspaceBody({required this.formKey});
+
+  final GlobalKey<FormState> formKey;
 
   @override
   State<_WorkspaceBody> createState() => _WorkspaceBodyState();
@@ -279,7 +309,7 @@ class _WorkspaceBodyState extends State<_WorkspaceBody> {
       (_) => _measurePersonalPanel(),
     );
     return Form(
-      key: controller.formKey,
+      key: widget.formKey,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: LayoutBuilder(

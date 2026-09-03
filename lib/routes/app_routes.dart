@@ -4,6 +4,7 @@ class AppRoutes {
   static const loading = '/';
   static const login = '/loginScreen';
   static const main = '/mainScreen';
+  static const employeeWorkspace = '$main/employees/editor';
   static const workspaceScreen = '$main/:screen';
   static const home = main;
 

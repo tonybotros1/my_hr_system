@@ -20,6 +20,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/main/main_screen.dart';
 import 'services/authenticated_api_service.dart';
 import 'services/auth_session_service.dart';
+import 'widgets/employees/employee_workspace_dialog.dart';
 
 void main() {
   runApp(const MyApp());
@@ -74,6 +75,14 @@ class MyApp extends StatelessWidget {
           name: AppRoutes.main,
           page: () => const MainScreen(),
           binding: _mainBinding(),
+        ),
+        GetPage(
+          name: AppRoutes.employeeWorkspace,
+          page: () => const EmployeeWorkspaceRoute(),
+          binding: _mainBinding(),
+          fullscreenDialog: true,
+          opaque: false,
+          transition: Transition.noTransition,
         ),
         GetPage(
           name: AppRoutes.workspaceScreen,
