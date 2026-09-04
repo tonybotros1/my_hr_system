@@ -4,6 +4,9 @@ DataHub AI HR System is a standalone Flutter web client for employee administrat
 
 The application uses the existing DataHub AI FastAPI backend and MongoDB database, while remaining independent from the legacy Flutter client. Company profiles and shared master data can continue to be managed by the main system; this project provides the focused HR workspace.
 
+> [!IMPORTANT]
+> **Proprietary source code — All Rights Reserved.** No permission is granted to download, copy, use, modify, host, redistribute, or sell this repository or its source code. Access to the repository does not grant a license. See [LICENSE](LICENSE).
+
 ## Contents
 
 - [Core features](#core-features)
@@ -167,6 +170,7 @@ my_hr_system/
 │   └── main.dart                      # Application entry point and GetX bindings
 ├── test/                              # Widget, model, service, and regression tests
 ├── web/                               # Web manifest, icons, and index page
+├── LICENSE                            # Proprietary All Rights Reserved terms
 ├── pubspec.yaml
 └── README.md
 ```
@@ -549,6 +553,9 @@ Run `flutter pub get` and confirm the font files under `assets/fonts/` are prese
 
 ## Security and production notes
 
+- Keep this repository private and grant access only to trusted people who need it.
+- Do not send customers a source-code archive unless a signed agreement explicitly authorizes it.
+- Remove repository access immediately when a developer, employee, or contractor no longer needs it.
 - Never place MongoDB, Cloudinary, OAuth, or token-signing secrets in Flutter code or `--dart-define` values.
 - Treat everything compiled into `build/web/` as public.
 - Use separate, strong access-token and refresh-token secrets.
@@ -571,4 +578,10 @@ Run `flutter pub get` and confirm the font files under `assets/fonts/` are prese
 
 ## License
 
-No open-source license is currently included. Treat this project as private and proprietary unless the owner adds an explicit license.
+Copyright © 2026 DataHub AI. All Rights Reserved.
+
+This project is proprietary software and is **not open source**. The [proprietary license](LICENSE) grants no public permission to download, copy, use, modify, host, distribute, sublicense, sell, or create derivative works from the repository or its source code.
+
+Viewing the repository, receiving an accidental copy, or accessing a deployed version of the application does not transfer ownership or grant permission to reuse the code. Authorized customers may use only the hosted application or deliverables covered by their separate written agreement.
+
+Third-party packages, fonts, and other dependencies remain governed by their own licenses. The DataHub AI proprietary license applies only to material owned by DataHub AI.
