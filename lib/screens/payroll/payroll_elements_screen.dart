@@ -27,7 +27,7 @@ class PayrollElementsScreen extends GetView<PayrollElementsController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _PageHeader(compact: compact),
+              const _PageHeader(),
               const SizedBox(height: AppSpacing.lg),
               const _SearchToolbar(),
               const SizedBox(height: AppSpacing.sm),
@@ -40,41 +40,15 @@ class PayrollElementsScreen extends GetView<PayrollElementsController> {
   }
 }
 
-class _PageHeader extends GetView<PayrollElementsController> {
-  const _PageHeader({required this.compact});
-
-  final bool compact;
+class _PageHeader extends StatelessWidget {
+  const _PageHeader();
 
   @override
   Widget build(BuildContext context) {
-    final title = Text('Payroll Elements', style: AppTextStyles.pageHeading);
-    final button = FilledButton.icon(
-      onPressed: () {
-        controller.prepareNewElement();
-        showPayrollElementEditor(context);
-      },
-      icon: const Icon(Icons.add_rounded, size: 19),
-      label: const Text('New Element'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(142, AppSizes.payrollActionHeight),
-      ),
-    );
-
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          title,
-          const SizedBox(height: AppSpacing.md),
-          button,
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        button,
-      ],
+    return Text(
+      'Payroll Elements',
+      textAlign: TextAlign.center,
+      style: AppTextStyles.pageHeading,
     );
   }
 }
@@ -90,73 +64,131 @@ class _SearchToolbar extends GetView<PayrollElementsController> {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final stacked = constraints.maxWidth < 680;
-            final fieldWidth = stacked
+            if (constraints.maxWidth >= 900) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: _KeyFilter()),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: _NameFilter()),
+                  const SizedBox(width: AppSpacing.sm),
+                  _FindButton(),
+                  const SizedBox(width: AppSpacing.sm),
+                  _ClearButton(),
+                  const SizedBox(width: AppSpacing.sm),
+                  _NewButton(),
+                ],
+              );
+            }
+            final singleColumn = constraints.maxWidth < 560;
+            final fieldWidth = singleColumn
                 ? constraints.maxWidth
-                : (constraints.maxWidth - 288) / 2;
+                : (constraints.maxWidth - AppSpacing.sm) / 2;
+            final actionWidth = singleColumn
+                ? constraints.maxWidth
+                : (constraints.maxWidth - (AppSpacing.sm * 2)) / 3;
             return Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               crossAxisAlignment: WrapCrossAlignment.end,
               children: [
-                SizedBox(
-                  width: fieldWidth,
-                  child: AppTextFormField(
-                    label: 'Key',
-                    hintText: 'Search by element key',
-                    controller: controller.keyFilter,
-                    textInputAction: TextInputAction.search,
-                    onFieldSubmitted: (_) => controller.fetchElements(),
-                  ),
-                ),
-                SizedBox(
-                  width: fieldWidth,
-                  child: AppTextFormField(
-                    label: 'Name',
-                    hintText: 'Search by element name',
-                    controller: controller.nameFilter,
-                    textInputAction: TextInputAction.search,
-                    onFieldSubmitted: (_) => controller.fetchElements(),
-                  ),
-                ),
-                Obx(
-                  () => SizedBox(
-                    width: stacked
-                        ? (constraints.maxWidth - AppSpacing.sm) / 2
-                        : 126,
-                    height: AppSizes.payrollActionHeight,
-                    child: FilledButton(
-                      onPressed: controller.isLoading.value
-                          ? null
-                          : controller.fetchElements,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primaryLight,
-                        foregroundColor: AppColors.primaryDark,
-                        elevation: 0,
-                      ),
-                      child: controller.isLoading.value
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Find'),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: stacked
-                      ? (constraints.maxWidth - AppSpacing.sm) / 2
-                      : 126,
-                  height: AppSizes.payrollActionHeight,
-                  child: OutlinedButton(
-                    onPressed: controller.clearFilters,
-                    child: const Text('Clear'),
-                  ),
-                ),
+                SizedBox(width: fieldWidth, child: _KeyFilter()),
+                SizedBox(width: fieldWidth, child: _NameFilter()),
+                SizedBox(width: actionWidth, child: const _FindButton()),
+                SizedBox(width: actionWidth, child: const _ClearButton()),
+                SizedBox(width: actionWidth, child: const _NewButton()),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _KeyFilter extends GetView<PayrollElementsController> {
+  @override
+  Widget build(BuildContext context) {
+    return AppTextFormField(
+      label: 'Key',
+      hintText: 'Search by element key',
+      controller: controller.keyFilter,
+      textInputAction: TextInputAction.search,
+      onFieldSubmitted: (_) => controller.fetchElements(),
+    );
+  }
+}
+
+class _NameFilter extends GetView<PayrollElementsController> {
+  @override
+  Widget build(BuildContext context) {
+    return AppTextFormField(
+      label: 'Name',
+      hintText: 'Search by element name',
+      controller: controller.nameFilter,
+      textInputAction: TextInputAction.search,
+      onFieldSubmitted: (_) => controller.fetchElements(),
+    );
+  }
+}
+
+class _FindButton extends GetView<PayrollElementsController> {
+  const _FindButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => SizedBox(
+        height: AppSizes.inputMinHeight,
+        child: FilledButton(
+          onPressed: controller.isLoading.value
+              ? null
+              : controller.fetchElements,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primaryLight,
+            foregroundColor: AppColors.primaryDark,
+            elevation: 0,
+          ),
+          child: controller.isLoading.value
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Find'),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClearButton extends GetView<PayrollElementsController> {
+  const _ClearButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: AppSizes.inputMinHeight,
+      child: OutlinedButton(
+        onPressed: controller.clearFilters,
+        child: const Text('Clear'),
+      ),
+    );
+  }
+}
+
+class _NewButton extends GetView<PayrollElementsController> {
+  const _NewButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: AppSizes.inputMinHeight,
+      child: FilledButton.icon(
+        onPressed: () {
+          controller.prepareNewElement();
+          showPayrollElementEditor(context);
+        },
+        label: const Text('New Element'),
       ),
     );
   }

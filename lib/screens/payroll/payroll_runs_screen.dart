@@ -32,7 +32,7 @@ class _PayrollRunsList extends GetView<PayrollRunsController> {
           mainAxisSize: phone ? MainAxisSize.min : MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _PageHeader(compact: compact),
+            const _PageHeader(),
             const SizedBox(height: AppSpacing.lg),
             const _SearchToolbar(),
             const SizedBox(height: AppSpacing.md),
@@ -57,40 +57,15 @@ class _PayrollRunsList extends GetView<PayrollRunsController> {
   }
 }
 
-class _PageHeader extends GetView<PayrollRunsController> {
-  const _PageHeader({required this.compact});
-
-  final bool compact;
+class _PageHeader extends StatelessWidget {
+  const _PageHeader();
 
   @override
   Widget build(BuildContext context) {
-    final title = Text('Payroll Runs', style: AppTextStyles.pageHeading);
-    final button = FilledButton.icon(
-      onPressed: () async {
-        final ready = await controller.prepareNewRun();
-        if (ready && context.mounted) showPayrollRunCreateDialog(context);
-      },
-      icon: const Icon(Icons.add_rounded, size: 19),
-      label: const Text('New Payroll'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(145, AppSizes.payrollActionHeight),
-      ),
-    );
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          title,
-          const SizedBox(height: AppSpacing.md),
-          button,
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        button,
-      ],
+    return Text(
+      'Payroll Runs',
+      textAlign: TextAlign.center,
+      style: AppTextStyles.pageHeading,
     );
   }
 }
@@ -106,7 +81,7 @@ class _SearchToolbar extends GetView<PayrollRunsController> {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth >= 900) {
+            if (constraints.maxWidth >= 1080) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -116,9 +91,11 @@ class _SearchToolbar extends GetView<PayrollRunsController> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(flex: 12, child: _PeriodFilter()),
                   const SizedBox(width: AppSpacing.sm),
-                  const SizedBox(width: 94, child: _FindButton()),
+                  _FindButton(),
                   const SizedBox(width: AppSpacing.sm),
-                  const SizedBox(width: 94, child: _ClearButton()),
+                  _ClearButton(),
+                  const SizedBox(width: AppSpacing.sm),
+                  _NewButton(),
                 ],
               );
             }
@@ -126,6 +103,9 @@ class _SearchToolbar extends GetView<PayrollRunsController> {
             final halfWidth = singleColumn
                 ? constraints.maxWidth
                 : (constraints.maxWidth - AppSpacing.sm) / 2;
+            final actionWidth = singleColumn
+                ? constraints.maxWidth
+                : (constraints.maxWidth - (AppSpacing.sm * 2)) / 3;
             return Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -134,8 +114,9 @@ class _SearchToolbar extends GetView<PayrollRunsController> {
                 SizedBox(width: halfWidth, child: _RunNumberFilter()),
                 SizedBox(width: halfWidth, child: _PayrollFilter()),
                 SizedBox(width: constraints.maxWidth, child: _PeriodFilter()),
-                SizedBox(width: halfWidth, child: const _FindButton()),
-                SizedBox(width: halfWidth, child: const _ClearButton()),
+                SizedBox(width: actionWidth, child: const _FindButton()),
+                SizedBox(width: actionWidth, child: const _ClearButton()),
+                SizedBox(width: actionWidth, child: const _NewButton()),
               ],
             );
           },
@@ -231,6 +212,24 @@ class _ClearButton extends GetView<PayrollRunsController> {
       child: OutlinedButton(
         onPressed: controller.clearFilters,
         child: const Text('Clear'),
+      ),
+    );
+  }
+}
+
+class _NewButton extends GetView<PayrollRunsController> {
+  const _NewButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: AppSizes.inputMinHeight,
+      child: FilledButton.icon(
+        onPressed: () async {
+          final ready = await controller.prepareNewRun();
+          if (ready && context.mounted) showPayrollRunCreateDialog(context);
+        },
+        label: const Text('New Payroll'),
       ),
     );
   }

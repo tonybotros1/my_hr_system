@@ -24,7 +24,7 @@ class LeaveTypesScreen extends GetView<LeaveTypesController> {
           mainAxisSize: phone ? MainAxisSize.min : MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _PageHeader(compact: compact),
+            const _PageHeader(),
             const SizedBox(height: AppSpacing.lg),
             const _SearchToolbar(),
             const SizedBox(height: AppSpacing.md),
@@ -51,40 +51,15 @@ class LeaveTypesScreen extends GetView<LeaveTypesController> {
   }
 }
 
-class _PageHeader extends GetView<LeaveTypesController> {
-  const _PageHeader({required this.compact});
-
-  final bool compact;
+class _PageHeader extends StatelessWidget {
+  const _PageHeader();
 
   @override
   Widget build(BuildContext context) {
-    final title = Text('Leave Types', style: AppTextStyles.pageHeading);
-    final button = FilledButton.icon(
-      onPressed: () async {
-        final ready = await controller.prepareNewLeaveType();
-        if (ready && context.mounted) showLeaveTypeEditor(context);
-      },
-      icon: const Icon(Icons.add_rounded, size: 19),
-      label: const Text('New Type'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(132, AppSizes.payrollActionHeight),
-      ),
-    );
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          title,
-          const SizedBox(height: AppSpacing.md),
-          button,
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        button,
-      ],
+    return Text(
+      'Leave Types',
+      textAlign: TextAlign.center,
+      style: AppTextStyles.pageHeading,
     );
   }
 }
@@ -100,7 +75,7 @@ class _SearchToolbar extends GetView<LeaveTypesController> {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth >= 900) {
+            if (constraints.maxWidth >= 1080) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -110,9 +85,11 @@ class _SearchToolbar extends GetView<LeaveTypesController> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(flex: 12, child: _BasedElementFilter()),
                   const SizedBox(width: AppSpacing.sm),
-                  const SizedBox(width: 94, child: _FindButton()),
+                  _FindButton(),
                   const SizedBox(width: AppSpacing.sm),
-                  const SizedBox(width: 94, child: _ClearButton()),
+                  _ClearButton(),
+                  const SizedBox(width: AppSpacing.sm),
+                  _NewButton(),
                 ],
               );
             }
@@ -123,7 +100,7 @@ class _SearchToolbar extends GetView<LeaveTypesController> {
                 : (constraints.maxWidth - AppSpacing.sm) / 2;
             final buttonWidth = singleColumn
                 ? constraints.maxWidth
-                : (constraints.maxWidth - AppSpacing.sm) / 2;
+                : (constraints.maxWidth - (AppSpacing.sm * 2)) / 3;
             return Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -137,6 +114,7 @@ class _SearchToolbar extends GetView<LeaveTypesController> {
                 ),
                 SizedBox(width: buttonWidth, child: const _FindButton()),
                 SizedBox(width: buttonWidth, child: const _ClearButton()),
+                SizedBox(width: buttonWidth, child: const _NewButton()),
               ],
             );
           },
@@ -219,6 +197,24 @@ class _FindButton extends GetView<LeaveTypesController> {
                 )
               : const Text('Find'),
         ),
+      ),
+    );
+  }
+}
+
+class _NewButton extends GetView<LeaveTypesController> {
+  const _NewButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: AppSizes.inputMinHeight,
+      child: FilledButton.icon(
+        onPressed: () async {
+          final ready = await controller.prepareNewLeaveType();
+          if (ready && context.mounted) showLeaveTypeEditor(context);
+        },
+        label: const Text('New Type'),
       ),
     );
   }

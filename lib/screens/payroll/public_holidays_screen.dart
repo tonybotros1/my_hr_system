@@ -45,26 +45,30 @@ class _PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.lg,
-      runSpacing: AppSpacing.sm,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
       children: [
-        Text('Public Holidays', style: AppTextStyles.pageHeading),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
+        Text(
+          'Public Holidays',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.pageHeading,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox.square(dimension: 8),
               ),
-              child: SizedBox.square(dimension: 8),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text('Public holiday', style: AppTextStyles.listCount),
-          ],
+              const SizedBox(width: AppSpacing.xs),
+              Text('Public holiday', style: AppTextStyles.listCount),
+            ],
+          ),
         ),
       ],
     );

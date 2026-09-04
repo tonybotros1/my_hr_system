@@ -20,9 +20,9 @@ class EmployeesScreen extends GetView<EmployeesController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PageHeader(onNew: () => _openNew(context)),
+          const _PageHeader(),
           const SizedBox(height: AppSpacing.md),
-          const _EmployeeFilters(),
+          _EmployeeFilters(onNew: () => _openNew(context)),
           const SizedBox(height: AppSpacing.md),
           Expanded(
             child: DecoratedBox(
@@ -106,44 +106,22 @@ class EmployeesScreen extends GetView<EmployeesController> {
 }
 
 class _PageHeader extends StatelessWidget {
-  const _PageHeader({required this.onNew});
-
-  final VoidCallback onNew;
+  const _PageHeader();
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final title = Text('Employees', style: AppTextStyles.pageHeading);
-        final action = FilledButton.icon(
-          onPressed: onNew,
-          icon: const Icon(Icons.add_rounded, size: 19),
-          label: const Text('New Record'),
-        );
-        if (constraints.maxWidth < 560) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              title,
-              const SizedBox(height: AppSpacing.sm),
-              action,
-            ],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(child: title),
-            const SizedBox(width: AppSpacing.md),
-            action,
-          ],
-        );
-      },
+    return Text(
+      'Employees',
+      textAlign: TextAlign.center,
+      style: AppTextStyles.pageHeading,
     );
   }
 }
 
 class _EmployeeFilters extends GetView<EmployeesController> {
-  const _EmployeeFilters();
+  const _EmployeeFilters({required this.onNew});
+
+  final VoidCallback onNew;
 
   @override
   Widget build(BuildContext context) {
@@ -160,8 +138,9 @@ class _EmployeeFilters extends GetView<EmployeesController> {
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
                     width:
-                        constraints.maxWidth < AppSizes.employeeFiltersMinWidth
-                        ? AppSizes.employeeFiltersMinWidth
+                        constraints.maxWidth <
+                            AppSizes.employeeFiltersMinWidth + 140
+                        ? AppSizes.employeeFiltersMinWidth + 140
                         : constraints.maxWidth,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -212,49 +191,59 @@ class _EmployeeFilters extends GetView<EmployeesController> {
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
-                        SizedBox(
-                          width: AppSizes.employeeFilterActionsWidth,
-                          child: _FilterActions(controller: controller),
-                        ),
+                        _FilterActions(controller: controller, onNew: onNew),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Obx(
-                  () => Wrap(
-                    spacing: AppSpacing.xs,
-                    runSpacing: AppSpacing.xs,
-                    children:
-                        const [
-                              'ALL',
-                              'EMPLOYEE',
-                              'APPLICANT',
-                              'EX-EMPLOYEE',
-                              'EX-APPLICANT',
-                            ]
-                            .map((type) {
-                              final selected =
-                                  controller.selectedType.value == type;
-                              return ChoiceChip(
-                                label: Text(type),
-                                selected: selected,
-                                onSelected: (_) => controller.setType(type),
-                                selectedColor: AppColors.primaryLight,
-                                side: BorderSide(
-                                  color: selected
-                                      ? AppColors.borderStrong
-                                      : AppColors.border,
-                                ),
-                                labelStyle: AppTextStyles.segment.copyWith(
-                                  color: selected
-                                      ? AppColors.primaryDark
-                                      : AppColors.textSecondary,
-                                ),
-                              );
-                            })
-                            .toList(growable: false),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Obx(
+                        () => Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children:
+                              const [
+                                    'ALL',
+                                    'EMPLOYEE',
+                                    'APPLICANT',
+                                    'EX-EMPLOYEE',
+                                    'EX-APPLICANT',
+                                  ]
+                                  .map((type) {
+                                    final selected =
+                                        controller.selectedType.value == type;
+                                    return ChoiceChip(
+                                      label: Text(type),
+                                      selected: selected,
+                                      onSelected: (_) =>
+                                          controller.setType(type),
+                                      selectedColor: AppColors.primaryLight,
+                                      side: BorderSide(
+                                        color: selected
+                                            ? AppColors.borderStrong
+                                            : AppColors.border,
+                                      ),
+                                      labelStyle: AppTextStyles.segment
+                                          .copyWith(
+                                            color: selected
+                                                ? AppColors.primaryDark
+                                                : AppColors.textSecondary,
+                                          ),
+                                    );
+                                  })
+                                  .toList(growable: false),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    FilledButton.icon(
+                      onPressed: onNew,
+                      label: const Text('New Employee'),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -304,48 +293,33 @@ class _FilterDropdown extends StatelessWidget {
 }
 
 class _FilterActions extends StatelessWidget {
-  const _FilterActions({required this.controller});
+  const _FilterActions({required this.controller, required this.onNew});
 
   final EmployeesController controller;
+  final VoidCallback onNew;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(
-            left: AppSizes.labelLeftPadding,
-            bottom: AppSpacing.xs,
+    return SizedBox(
+      height: AppSizes.inputMinHeight,
+      child: Row(
+        children: [
+          FilledButton(
+            onPressed: () => controller.loadEmployees(filtered: true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryLight,
+              foregroundColor: AppColors.primaryDark,
+              elevation: 0,
+            ),
+            child: const Text('Find'),
           ),
-          child: Text('Actions', style: AppTextStyles.fieldLabel),
-        ),
-        SizedBox(
-          height: AppSizes.inputMinHeight,
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => controller.loadEmployees(filtered: true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryLight,
-                    foregroundColor: AppColors.primaryDark,
-                    elevation: 0,
-                  ),
-                  child: const Text('Find'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: controller.clearFilters,
-                  child: const Text('Clear'),
-                ),
-              ),
-            ],
+          const SizedBox(width: AppSpacing.sm),
+          OutlinedButton(
+            onPressed: controller.clearFilters,
+            child: const Text('Clear'),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -28,7 +28,7 @@ class LegislationScreen extends GetView<LegislationController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _PageHeader(compact: compact),
+              const _PageHeader(),
               const SizedBox(height: AppSpacing.lg),
               const _FilterCard(),
               const SizedBox(height: AppSpacing.md),
@@ -41,36 +41,15 @@ class LegislationScreen extends GetView<LegislationController> {
   }
 }
 
-class _PageHeader extends GetView<LegislationController> {
-  const _PageHeader({required this.compact});
-
-  final bool compact;
+class _PageHeader extends StatelessWidget {
+  const _PageHeader();
 
   @override
   Widget build(BuildContext context) {
-    final button = FilledButton.icon(
-      onPressed: () {
-        controller.prepareNewLegislation();
-        showLegislationEditorDialog(context);
-      },
-      icon: const Icon(Icons.add_rounded, size: 19),
-      label: const Text('New Legislation'),
-    );
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Legislation', style: AppTextStyles.pageHeading),
-          const SizedBox(height: AppSpacing.sm),
-          button,
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: Text('Legislation', style: AppTextStyles.pageHeading)),
-        button,
-      ],
+    return Text(
+      'Legislation',
+      textAlign: TextAlign.center,
+      style: AppTextStyles.pageHeading,
     );
   }
 }
@@ -92,10 +71,11 @@ class _FilterCard extends GetView<LegislationController> {
                 children: [
                   const Expanded(child: _NameFilter()),
                   const SizedBox(width: AppSpacing.sm),
-                  const SizedBox(width: 120, child: _FindButton()),
+                  _FindButton(),
                   const SizedBox(width: AppSpacing.sm),
-                  const SizedBox(width: 120, child: _ClearButton()),
-                  const Spacer(),
+                  _ClearButton(),
+                  const SizedBox(width: AppSpacing.sm),
+                  _NewButton(),
                 ],
               );
             }
@@ -106,11 +86,13 @@ class _FilterCard extends GetView<LegislationController> {
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    const Expanded(child: _FindButton()),
+                    _FindButton(),
                     const SizedBox(width: AppSpacing.sm),
-                    const Expanded(child: _ClearButton()),
+                    _ClearButton(),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.sm),
+                const _NewButton(),
               ],
             );
           },
@@ -174,6 +156,24 @@ class _ClearButton extends GetView<LegislationController> {
       child: OutlinedButton(
         onPressed: controller.clearFilters,
         child: const Text('Clear'),
+      ),
+    );
+  }
+}
+
+class _NewButton extends GetView<LegislationController> {
+  const _NewButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: AppSizes.inputMinHeight,
+      child: FilledButton.icon(
+        onPressed: () {
+          controller.prepareNewLegislation();
+          showLegislationEditorDialog(context);
+        },
+        label: const Text('New Legislation'),
       ),
     );
   }

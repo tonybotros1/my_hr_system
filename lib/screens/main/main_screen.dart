@@ -187,44 +187,26 @@ class _MainCanvas extends GetView<MainScreenController> {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: AppColors.mainCanvas,
-      child: Column(
+      child: Stack(
         children: [
-          Container(
-            height: AppSizes.shellTopBarHeight,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            decoration: AppDecorations.topBar,
-            child: SafeArea(
-              bottom: false,
-              child: Row(
-                children: [
-                  if (!sidebarOpen)
-                    IconButton(
-                      onPressed: () =>
-                          controller.toggleSidebar(compact: compact),
-                      tooltip: 'Open navigation',
-                      icon: const Icon(Icons.menu_rounded),
-                    ),
-                  const Spacer(),
-                  Obx(() {
-                    final loggingOut = controller.isLoggingOut.value;
-                    return TextButton.icon(
-                      onPressed: loggingOut ? null : controller.requestLogout,
-                      icon: loggingOut
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.logout_rounded, size: 19),
-                      label: compact
-                          ? const SizedBox.shrink()
-                          : const Text('Sign out'),
-                    );
-                  }),
-                ],
+          Positioned.fill(child: _SelectedScreen(routeName: activeRouteName)),
+          if (!sidebarOpen)
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + AppSpacing.sm,
+              left: AppSpacing.sm,
+              child: Material(
+                color: AppColors.surface,
+                elevation: 3,
+                shadowColor: AppColors.cardShadow,
+                borderRadius: BorderRadius.circular(AppRadii.field),
+                child: IconButton(
+                  onPressed: () => controller.toggleSidebar(compact: compact),
+                  tooltip: 'Open navigation',
+                  color: AppColors.primaryDark,
+                  icon: const Icon(Icons.menu_rounded),
+                ),
               ),
             ),
-          ),
-          Expanded(child: _SelectedScreen(routeName: activeRouteName)),
         ],
       ),
     );

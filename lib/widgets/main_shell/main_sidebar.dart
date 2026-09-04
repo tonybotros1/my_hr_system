@@ -61,55 +61,97 @@ class MainSidebar extends GetView<MainScreenController> {
               ),
               const Divider(color: AppColors.sidebarDivider),
               const SizedBox(height: AppSpacing.md),
-              Obx(() {
-                final company = controller.company.value;
-                return Row(
-                  children: [
-                    Container(
-                      width: AppSizes.profileAvatarSize,
-                      height: AppSizes.profileAvatarSize,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: AppColors.sidebarAvatar,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        company?.userInitials ?? 'U',
-                        style: AppTextStyles.fieldLabel.copyWith(
-                          color: AppColors.sidebarAvatarText,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            company?.displayUserName ?? 'Current user',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.profileName,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            company?.email ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.profileDetail,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }),
+              const _SidebarFooter(),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+class _SidebarFooter extends GetView<MainScreenController> {
+  const _SidebarFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final company = controller.company.value;
+      final loggingOut = controller.isLoggingOut.value;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: AppSizes.profileAvatarSize,
+                height: AppSizes.profileAvatarSize,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.sidebarAvatar,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  company?.userInitials ?? 'U',
+                  style: AppTextStyles.fieldLabel.copyWith(
+                    color: AppColors.sidebarAvatarText,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      company?.displayUserName ?? 'Current user',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.profileName,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      company?.email ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.profileDetail,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton.icon(
+            onPressed: loggingOut ? null : controller.requestLogout,
+            style: TextButton.styleFrom(
+              alignment: Alignment.centerLeft,
+              foregroundColor: AppColors.sidebarText,
+              disabledForegroundColor: AppColors.sidebarLabel,
+              backgroundColor: AppColors.sidebarActive,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.sm,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.field),
+              ),
+            ),
+            icon: loggingOut
+                ? const SizedBox.square(
+                    dimension: 17,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.sidebarText,
+                    ),
+                  )
+                : const Icon(Icons.logout_rounded, size: 19),
+            label: Text(loggingOut ? 'Signing out…' : 'Sign out'),
+          ),
+        ],
+      );
+    });
   }
 }
 
