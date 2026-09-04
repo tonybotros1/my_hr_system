@@ -11,6 +11,7 @@ import 'package:my_hr_system/controllers/employee_controllers/employees_controll
 import 'package:my_hr_system/models/employees/employee_model.dart';
 import 'package:my_hr_system/models/auth/login_response_model.dart';
 import 'package:my_hr_system/models/navigation/navigation_item_model.dart';
+import 'package:my_hr_system/models/users/user_model.dart';
 import 'package:my_hr_system/models/payroll/leave_type_model.dart';
 import 'package:my_hr_system/models/payroll/payroll_element_model.dart';
 import 'package:my_hr_system/models/payroll/payroll_model.dart';
@@ -22,6 +23,7 @@ import 'package:my_hr_system/models/payroll/legislation_model.dart';
 import 'package:my_hr_system/routes/app_routes.dart';
 import 'package:my_hr_system/services/auth_session_service.dart';
 import 'package:my_hr_system/services/authenticated_api_service.dart';
+import 'package:my_hr_system/services/hr_access_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -113,6 +115,135 @@ void main() {
       AppRoutes.screenPathForMenuRoute('/employees'),
       '/mainScreen/employees',
     );
+    expect(AppRoutes.screenPathForMenuRoute('/users'), '/mainScreen/users');
+  });
+
+  test('keeps only HR screens and exposes Users only to an admin', () {
+    final access = HrAccessPolicy.fromResponses(
+      menuResponse: {
+        'root': [
+          {
+            '_id': 'general',
+            'name': 'General',
+            'isMenu': true,
+            'children': <Map<String, dynamic>>[],
+          },
+          {
+            '_id': 'hr',
+            'name': 'HR',
+            'isMenu': true,
+            'children': [
+              {
+                '_id': 'employees',
+                'name': 'Employees',
+                'isMenu': false,
+                'route_name': '/employees',
+                'children': <Map<String, dynamic>>[],
+              },
+              {
+                '_id': 'unported',
+                'name': 'Unported screen',
+                'isMenu': false,
+                'route_name': '/not-in-the-hr-app',
+                'children': <Map<String, dynamic>>[],
+              },
+            ],
+          },
+        ],
+      },
+      companyResponse: {
+        'company_details': {'is_admin': true},
+      },
+    );
+
+    expect(access.hasHrResponsibility, isTrue);
+    expect(access.isAdmin, isTrue);
+    expect(access.navigationItems, hasLength(2));
+    expect(access.navigationItems.first.name, 'Employees');
+    expect(access.navigationItems.first.routeName, '/employees');
+    expect(access.navigationItems.last.name, "Admin's Screens");
+    expect(access.navigationItems.last.children.single.name, 'Users');
+  });
+
+  test('filters direct HR sidebar screens using saved user access', () {
+    final access = HrAccessPolicy.fromResponses(
+      menuResponse: {
+        'root': [
+          {
+            '_id': 'hr',
+            'name': 'HR',
+            'isMenu': true,
+            'children': [
+              {
+                '_id': 'employees',
+                'name': 'Employees',
+                'isMenu': false,
+                'route_name': '/employees',
+                'children': <Map<String, dynamic>>[],
+              },
+              {
+                '_id': 'payroll',
+                'name': 'Payroll',
+                'isMenu': false,
+                'route_name': '/payroll',
+                'children': <Map<String, dynamic>>[],
+              },
+            ],
+          },
+        ],
+      },
+      companyResponse: {
+        'company_details': {
+          'is_admin': false,
+          'hr_screen_access': ['/payroll'],
+        },
+      },
+    );
+
+    expect(access.hasHrResponsibility, isTrue);
+    expect(access.navigationItems.map((item) => item.routeName), ['/payroll']);
+  });
+
+  test('an admin without the HR responsibility cannot enter the HR app', () {
+    final access = HrAccessPolicy.fromResponses(
+      menuResponse: {
+        'root': [
+          {
+            '_id': 'general',
+            'name': 'General',
+            'isMenu': true,
+            'children': <Map<String, dynamic>>[],
+          },
+        ],
+      },
+      companyResponse: {
+        'company_details': {'is_admin': true},
+      },
+    );
+
+    expect(access.hasHrResponsibility, isFalse);
+    expect(access.navigationItems, isEmpty);
+  });
+
+  test('parses users and creates an end-of-day expiry timestamp', () {
+    final user = UserModel.fromJson({
+      '_id': 'user-1',
+      'user_name': 'HR Admin',
+      'email': 'admin@company.com',
+      'status': true,
+      'is_admin': true,
+      'roles': ['hr-role'],
+      'branches': <String>[],
+      'hr_screen_access': ['/employees', '/payroll'],
+      'expiry_date': '2027-09-04T23:59:59.000Z',
+      'createdAt': '2026-09-04T10:00:00.000Z',
+    });
+
+    expect(user.userName, 'HR Admin');
+    expect(user.isAdmin, isTrue);
+    expect(user.roles, ['hr-role']);
+    expect(user.hrScreenAccess, ['/employees', '/payroll']);
+    expect(userExpiryToIso('2027-09-04'), '2027-09-04T23:59:59.000Z');
   });
 
   test('parses employee profile sections and derives the person type', () {
@@ -765,13 +896,17 @@ void main() {
 
   test('accepts a null body from successful write requests', () async {
     SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
-    final client = MockClient(
-      (_) async => http.Response(
+    final client = MockClient((request) async {
+      if (request.url.path == '/status-test') {
+        expect(request.method, 'PATCH');
+        expect(jsonDecode(request.body), isFalse);
+      }
+      return http.Response(
         'null',
         200,
         headers: {'content-type': 'application/json'},
-      ),
-    );
+      );
+    });
     final api = AuthenticatedApiService(
       httpClient: client,
       session: AuthSessionService(),
@@ -779,6 +914,7 @@ void main() {
 
     expect(await api.postJson('/post-test'), isEmpty);
     expect(await api.patchJson('/patch-test'), isEmpty);
+    expect(await api.patchJsonValue('/status-test', body: false), isEmpty);
     expect(await api.deleteJson('/delete-test'), isEmpty);
   });
 }

@@ -18,6 +18,7 @@ class AppRoutes {
     'publicholidays': 'public-holidays',
     'legislation': 'legislation',
     'employees': 'employees',
+    'users': 'users',
   };
 
   static String normalizeMenuRoute(String? routeName) {

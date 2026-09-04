@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import '../../config/app_config.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_session_service.dart';
+import '../../services/authenticated_api_service.dart';
+import '../../services/hr_access_service.dart';
 
 enum _ValidationResult { valid, invalid, unauthorized, unavailable }
 
@@ -21,6 +23,7 @@ class LoadingScreenController extends GetxController {
   final isChecking = true.obs;
 
   AuthSessionService get _session => Get.find<AuthSessionService>();
+  HrAccessService get _hrAccess => Get.find<HrAccessService>();
 
   @override
   void onInit() {
@@ -56,6 +59,11 @@ class LoadingScreenController extends GetxController {
 
       switch (validation) {
         case _ValidationResult.valid:
+          final access = await _hrAccess.load(forceRefresh: true);
+          if (!access.hasHrResponsibility) {
+            await _openLogin(clearSession: true);
+            return;
+          }
           Get.offAllNamed(AppRoutes.home);
           return;
         case _ValidationResult.invalid:
@@ -66,6 +74,12 @@ class LoadingScreenController extends GetxController {
           _showRetry();
           return;
       }
+    } on SessionExpiredException {
+      await _openLogin(clearSession: true);
+    } on ApiRequestException {
+      _showRetry();
+    } on FormatException {
+      await _openLogin(clearSession: true);
     } catch (_) {
       _showRetry();
     } finally {
@@ -139,7 +153,10 @@ class LoadingScreenController extends GetxController {
   }
 
   Future<void> _openLogin({required bool clearSession}) async {
-    if (clearSession) await _session.clear();
+    if (clearSession) {
+      _hrAccess.clearCache();
+      await _session.clear();
+    }
     if (!isClosed) Get.offAllNamed(AppRoutes.login);
   }
 

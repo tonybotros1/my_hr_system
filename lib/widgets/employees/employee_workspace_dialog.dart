@@ -9,6 +9,7 @@ import '../../controllers/employee_controllers/employees_controller.dart';
 import '../../models/employees/employee_model.dart';
 import '../../routes/app_routes.dart';
 import '../../services/browser_dialog_history.dart';
+import '../../services/hr_access_service.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
 import '../form_fields/app_date_form_field.dart';
@@ -46,6 +47,28 @@ class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
 
   @override
   Widget build(BuildContext context) {
+    if (Get.isRegistered<HrAccessService>()) {
+      final accessService = Get.find<HrAccessService>();
+      return Obx(() {
+        final access = accessService.currentAccess.value;
+        if (access == null) {
+          return const ColoredBox(
+            color: AppColors.mainCanvas,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!access.canOpenRoute('/employees')) {
+          return _EmployeeWorkspaceDenied(
+            onClose: () => Navigator.of(context).maybePop(),
+          );
+        }
+        return _buildWorkspace();
+      });
+    }
+    return _buildWorkspace();
+  }
+
+  Widget _buildWorkspace() {
     return ColoredBox(
       color: AppColors.dialogScrim,
       child: Dialog(
@@ -58,6 +81,41 @@ class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
             children: [
               _WorkspaceHeader(formKey: _formKey),
               Expanded(child: _WorkspaceBody(formKey: _formKey)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmployeeWorkspaceDenied extends StatelessWidget {
+  const _EmployeeWorkspaceDenied({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.mainCanvas,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.lock_outline_rounded,
+                size: 42,
+                color: AppColors.iconMuted,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'You do not have access to Employees.',
+                style: AppTextStyles.bodyMuted,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              FilledButton(onPressed: onClose, child: const Text('Close')),
             ],
           ),
         ),

@@ -56,6 +56,14 @@ class AuthenticatedApiService extends GetxService {
     return _validatedBody(response, allowNullSuccess: true);
   }
 
+  Future<Map<String, dynamic>> patchJsonValue(
+    String path, {
+    required Object? body,
+  }) async {
+    final response = await _authorizedRequest('PATCH', path, body: body);
+    return _validatedBody(response, allowNullSuccess: true);
+  }
+
   Future<Map<String, dynamic>> deleteJson(String path) async {
     final response = await _authorizedRequest('DELETE', path);
     return _validatedBody(response, allowNullSuccess: true);
@@ -140,7 +148,7 @@ class AuthenticatedApiService extends GetxService {
   Future<http.Response> _authorizedRequest(
     String method,
     String path, {
-    Map<String, dynamic>? body,
+    Object? body,
   }) async {
     try {
       var accessToken = (await _session.readAccessToken())?.trim() ?? '';
@@ -180,7 +188,7 @@ class AuthenticatedApiService extends GetxService {
     String method,
     String path,
     String accessToken, {
-    Map<String, dynamic>? body,
+    Object? body,
   }) {
     final request = http.Request(method, AppConfig.endpoint(path));
     request.headers.addAll({

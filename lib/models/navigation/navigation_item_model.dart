@@ -15,6 +15,22 @@ class NavigationItemModel {
 
   bool get canOpen => routeName != null && routeName!.isNotEmpty;
 
+  NavigationItemModel copyWith({
+    String? id,
+    String? name,
+    bool? isMenu,
+    String? routeName,
+    List<NavigationItemModel>? children,
+  }) {
+    return NavigationItemModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      isMenu: isMenu ?? this.isMenu,
+      routeName: routeName ?? this.routeName,
+      children: children ?? this.children,
+    );
+  }
+
   factory NavigationItemModel.fromJson(Map<String, dynamic> json) {
     final rawChildren = json['children'];
     final children = rawChildren is List

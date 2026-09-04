@@ -9,6 +9,8 @@ import '../../config/app_config.dart';
 import '../../models/auth/login_response_model.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_session_service.dart';
+import '../../services/authenticated_api_service.dart';
+import '../../services/hr_access_service.dart';
 import '../../widgets/dialogs/app_alert_dialog.dart';
 
 class LoginScreenController extends GetxController {
@@ -27,6 +29,8 @@ class LoginScreenController extends GetxController {
   final errorMessage = RxnString();
 
   AuthSessionService get _session => Get.find<AuthSessionService>();
+  AuthenticatedApiService get _api => Get.find<AuthenticatedApiService>();
+  HrAccessService get _hrAccess => Get.find<HrAccessService>();
 
   void togglePasswordVisibility() {
     obscurePassword.toggle();
@@ -71,14 +75,33 @@ class LoginScreenController extends GetxController {
       if (response.statusCode == 200) {
         final login = LoginResponseModel.fromJson(body);
         await _session.saveLogin(login);
+        final access = await _hrAccess.load(forceRefresh: true);
+        if (!access.hasHrResponsibility) {
+          await _api.logout();
+          errorMessage.value =
+              'Your account does not have access to the HR system.';
+          return;
+        }
         Get.offAllNamed(AppRoutes.home);
         return;
       }
 
       errorMessage.value = _errorFor(response.statusCode, body);
+    } on SessionExpiredException {
+      _hrAccess.clearCache();
+      await _session.clear();
+      errorMessage.value = 'Your session could not be started. Try again.';
+    } on ApiRequestException catch (error) {
+      _hrAccess.clearCache();
+      await _session.clear();
+      errorMessage.value = error.message;
     } on FormatException {
+      _hrAccess.clearCache();
+      await _session.clear();
       errorMessage.value = 'The server returned an invalid response.';
     } catch (_) {
+      _hrAccess.clearCache();
+      await _session.clear();
       errorMessage.value =
           'We could not reach the server. Check your connection and try again.';
     } finally {

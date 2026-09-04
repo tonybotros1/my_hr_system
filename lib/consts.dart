@@ -209,6 +209,9 @@ class AppSizes {
   static const double employeeAttachmentPickerPreviewSize = 52;
   static const double employeeAttachmentFilesDialogWidth = 700;
   static const double employeeAttachmentFilesDialogHeight = 500;
+  static const double usersTableMinWidth = 1030;
+  static const double usersTableRowHeight = 54;
+  static const double userEditorWidth = 620;
 }
 
 /// Shared functional limits that must stay consistent across the app.

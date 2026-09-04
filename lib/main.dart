@@ -14,12 +14,14 @@ import 'controllers/payroll_controllers/payroll_runs_controller.dart';
 import 'controllers/payroll_controllers/public_holidays_controller.dart';
 import 'controllers/payroll_controllers/legislation_controller.dart';
 import 'controllers/employee_controllers/employees_controller.dart';
+import 'controllers/user_controllers/users_controller.dart';
 import 'routes/app_routes.dart';
 import 'screens/auth/loading_screens.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main/main_screen.dart';
 import 'services/authenticated_api_service.dart';
 import 'services/auth_session_service.dart';
+import 'services/hr_access_service.dart';
 import 'widgets/employees/employee_workspace_dialog.dart';
 
 void main() {
@@ -38,6 +40,7 @@ Bindings _mainBinding() {
     Get.lazyPut(PublicHolidaysController.new, fenix: true);
     Get.lazyPut(LegislationController.new, fenix: true);
     Get.lazyPut(EmployeesController.new, fenix: true);
+    Get.lazyPut(UsersController.new, fenix: true);
   });
 }
 
@@ -53,6 +56,7 @@ class MyApp extends StatelessWidget {
       initialBinding: BindingsBuilder(() {
         Get.put(AuthSessionService(), permanent: true);
         Get.put(AuthenticatedApiService(), permanent: true);
+        Get.put(HrAccessService(), permanent: true);
       }),
       initialRoute: AppRoutes.loading,
       defaultTransition: Transition.fadeIn,
