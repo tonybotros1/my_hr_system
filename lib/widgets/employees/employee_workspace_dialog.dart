@@ -52,9 +52,9 @@ class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
       return Obx(() {
         final access = accessService.currentAccess.value;
         if (access == null) {
-          return const ColoredBox(
+          return ColoredBox(
             color: AppColors.mainCanvas,
-            child: Center(child: CircularProgressIndicator()),
+            child: const Center(child: CircularProgressIndicator()),
           );
         }
         if (!access.canOpenRoute('/employees')) {
@@ -467,7 +467,7 @@ class _PersonalInformationPanelState extends State<_PersonalInformationPanel> {
               horizontal: AppSpacing.md,
               vertical: AppSpacing.sm,
             ),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.tableHeader,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(AppRadii.section),
@@ -1335,9 +1335,9 @@ class _BalanceTile extends StatelessWidget {
           Container(
             width: 5,
             constraints: const BoxConstraints(minHeight: 104),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadii.field),
                 bottomLeft: Radius.circular(AppRadii.field),
               ),

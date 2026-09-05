@@ -6,11 +6,13 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_hr_system/consts.dart';
 import 'package:my_hr_system/models/company/company_identity_model.dart';
 import 'package:my_hr_system/controllers/employee_controllers/employees_controller.dart';
 import 'package:my_hr_system/models/employees/employee_model.dart';
 import 'package:my_hr_system/models/auth/login_response_model.dart';
 import 'package:my_hr_system/models/navigation/navigation_item_model.dart';
+import 'package:my_hr_system/models/settings/app_color_palette.dart';
 import 'package:my_hr_system/models/users/user_model.dart';
 import 'package:my_hr_system/models/payroll/leave_type_model.dart';
 import 'package:my_hr_system/models/payroll/payroll_element_model.dart';
@@ -24,6 +26,7 @@ import 'package:my_hr_system/routes/app_routes.dart';
 import 'package:my_hr_system/services/auth_session_service.dart';
 import 'package:my_hr_system/services/authenticated_api_service.dart';
 import 'package:my_hr_system/services/hr_access_service.dart';
+import 'package:my_hr_system/services/theme_controller.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +47,26 @@ void main() {
     expect(response.roles, ['admin', 'hr']);
     expect(response.accessToken, 'access-token');
     expect(response.refreshToken, 'refresh-token');
+  });
+
+  test('restores and persists the selected color palette', () async {
+    SharedPreferences.setMockInitialValues({
+      'selected_color_palette': AppColorPalettes.ocean.id,
+    });
+
+    await ThemeController.restoreSavedPalette();
+    expect(AppColors.activePalette.id, AppColorPalettes.ocean.id);
+
+    final controller = ThemeController();
+    await controller.selectPalette(AppColorPalettes.violet.id);
+    final preferences = await SharedPreferences.getInstance();
+    expect(
+      preferences.getString('selected_color_palette'),
+      AppColorPalettes.violet.id,
+    );
+    expect(AppColors.activePalette.id, AppColorPalettes.violet.id);
+
+    AppColors.applyPalette(AppColorPalettes.dataHub);
   });
 
   test('parses company identity details', () {
@@ -116,6 +139,8 @@ void main() {
       '/mainScreen/employees',
     );
     expect(AppRoutes.screenPathForMenuRoute('/users'), '/mainScreen/users');
+    expect(AppRoutes.screenPathForMenuRoute('/settings'), AppRoutes.settings);
+    expect(AppRoutes.menuRouteForScreenSlug('settings'), '/settings');
   });
 
   test('keeps only HR screens and exposes Users only to an admin', () {

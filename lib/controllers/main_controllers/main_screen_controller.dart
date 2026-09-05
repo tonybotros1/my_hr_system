@@ -16,6 +16,7 @@ import '../../screens/payroll/payroll_runs_screen.dart';
 import '../../screens/payroll/public_holidays_screen.dart';
 import '../../screens/payroll/legislation_screen.dart';
 import '../../screens/employees/employees_screen.dart';
+import '../../screens/settings/settings_screen.dart';
 import '../../screens/users/users_screen.dart';
 import '../../services/authenticated_api_service.dart';
 import '../../services/hr_access_service.dart';
@@ -89,6 +90,13 @@ class MainScreenController extends GetxController {
     await Get.toNamed<void>(destination);
   }
 
+  Future<void> openSettings({required bool compact}) async {
+    if (compact) closeSidebar();
+    final currentPath = Uri.tryParse(Get.currentRoute)?.path;
+    if (currentPath == AppRoutes.settings) return;
+    await Get.toNamed<void>(AppRoutes.settings);
+  }
+
   // This function gets the screen based on the route name
   // and displays it on the right side of the main screen.
   Widget getScreenFromRoute(String? routeName) {
@@ -128,6 +136,8 @@ class MainScreenController extends GetxController {
         return isAdmin.value
             ? const UsersScreen()
             : const _WorkspaceAccessDenied();
+      case '/settings':
+        return const SettingsScreen();
 
       default:
         return const Center(child: Text('Screen not found'));
@@ -156,7 +166,10 @@ class MainScreenController extends GetxController {
       }
       isAdmin.value = access.isAdmin;
       navigationItems.assignAll(access.navigationItems);
-      allowedScreenRoutes.assignAll(_openRoutes(access.navigationItems));
+      allowedScreenRoutes.assignAll({
+        ..._openRoutes(access.navigationItems),
+        AppRoutes.normalizeMenuRoute('/settings'),
+      });
     } on SessionExpiredException {
       await _openLogin();
       return;

@@ -883,7 +883,7 @@ class _AttachmentEditorState extends State<_AttachmentEditor> {
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.attach_file_rounded,
               color: AppColors.primaryDark,
               size: 20,
@@ -916,7 +916,7 @@ class _AttachmentEditorState extends State<_AttachmentEditor> {
         Material(
           color: AppColors.primaryLight,
           shape: RoundedRectangleBorder(
-            side: const BorderSide(color: AppColors.primary),
+            side: BorderSide(color: AppColors.primary),
             borderRadius: BorderRadius.circular(AppRadii.field),
           ),
           clipBehavior: Clip.antiAlias,
@@ -927,7 +927,7 @@ class _AttachmentEditorState extends State<_AttachmentEditor> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.cloud_upload_outlined,
                     color: AppColors.primaryDark,
                     size: 34,

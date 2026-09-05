@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('main shell keeps logout in sidebar and removes the top bar', () {
+  test('main shell keeps circular settings and logout actions in sidebar', () {
     final mainScreen = File(
       'lib/screens/main/main_screen.dart',
     ).readAsStringSync();
@@ -17,11 +17,15 @@ void main() {
     expect(mainScreen, isNot(contains("const Text('Sign out')")));
 
     final navigationIndex = sidebar.indexOf('_NavigationBody(');
-    final footerIndex = sidebar.indexOf('const _SidebarFooter()');
+    final footerIndex = sidebar.indexOf('_SidebarFooter(');
     expect(navigationIndex, greaterThanOrEqualTo(0));
     expect(footerIndex, greaterThan(navigationIndex));
     expect(sidebar, contains('controller.requestLogout'));
-    expect(sidebar, contains("'Sign out'"));
+    expect(sidebar, contains('Icons.logout_rounded'));
+    expect(sidebar, contains('Icons.settings_rounded'));
+    expect(sidebar, contains('controller.openSettings'));
+    expect(sidebar, contains('shape: const CircleBorder()'));
+    expect(sidebar, isNot(contains("label: Text(loggingOut")));
   });
 
   test('list screens center titles and keep create actions in filters', () {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'models/settings/app_color_palette.dart';
 import 'widgets/dialogs/app_alert_dialog.dart';
 
 /// Project-wide color tokens.
@@ -10,27 +11,35 @@ import 'widgets/dialogs/app_alert_dialog.dart';
 class AppColors {
   AppColors._();
 
-  static const primary = Color(0xFF0C9D93);
-  static const primaryDark = Color(0xFF087870);
-  static const primaryLight = Color(0xFFE7F8F6);
-  static const primaryDisabled = Color(0x8C0C9D93);
+  static AppColorPalette _activePalette = AppColorPalettes.dataHub;
 
-  static const background = Color(0xFFF4FAF9);
-  static const backgroundStart = Color(0xFFEDF9F8);
-  static const backgroundMiddle = Color(0xFFF8FBFB);
-  static const backgroundEnd = Color(0xFFE5F4F2);
+  static AppColorPalette get activePalette => _activePalette;
+
+  static void applyPalette(AppColorPalette palette) {
+    _activePalette = palette;
+  }
+
+  static Color get primary => _activePalette.primary;
+  static Color get primaryDark => _activePalette.primaryDark;
+  static Color get primaryLight => _activePalette.primaryLight;
+  static Color get primaryDisabled => _activePalette.primaryDisabled;
+
+  static Color get background => _activePalette.background;
+  static Color get backgroundStart => _activePalette.backgroundStart;
+  static Color get backgroundMiddle => _activePalette.backgroundMiddle;
+  static Color get backgroundEnd => _activePalette.backgroundEnd;
   static const surface = Colors.white;
-  static const mainCanvas = Color(0xFFF4F8F8);
+  static Color get mainCanvas => _activePalette.mainCanvas;
   static const softSurface = Color(0xFFF8FBFB);
   static const segmentBackground = Color(0xFFEFF6F5);
   static const tableHeader = Color(0xFFF3F8F7);
 
-  static const sidebarBackground = Color(0xFF143336);
-  static const sidebarActive = Color(0xFF205156);
-  static const sidebarText = Color(0xFFABC3C2);
-  static const sidebarLabel = Color(0xFF719393);
-  static const sidebarDivider = Color(0xFF2A5457);
-  static const sidebarProfileText = Color(0xFF8BB0AF);
+  static Color get sidebarBackground => _activePalette.sidebarBackground;
+  static Color get sidebarActive => _activePalette.sidebarActive;
+  static Color get sidebarText => _activePalette.sidebarText;
+  static Color get sidebarLabel => _activePalette.sidebarLabel;
+  static Color get sidebarDivider => _activePalette.sidebarDivider;
+  static Color get sidebarProfileText => _activePalette.sidebarProfileText;
   static const sidebarAvatar = Color(0xFFE2B372);
   static const sidebarAvatarText = Color(0xFF64451E);
   static const sidebarScrim = Color(0x660D2022);
@@ -59,9 +68,9 @@ class AppColors {
   static const topBarShadow = Color(0x0D123C3E);
 
   // Backward-compatible aliases for code written before the semantic names.
-  static const teal = primary;
-  static const deepTeal = primaryDark;
-  static const paleTeal = primaryLight;
+  static Color get teal => primary;
+  static Color get deepTeal => primaryDark;
+  static Color get paleTeal => primaryLight;
   static const ink = textPrimary;
   static const muted = textSecondary;
   static const line = border;
@@ -234,7 +243,7 @@ class AppDurations {
 class AppGradients {
   AppGradients._();
 
-  static const pageBackground = LinearGradient(
+  static LinearGradient get pageBackground => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
@@ -242,10 +251,10 @@ class AppGradients {
       AppColors.backgroundMiddle,
       AppColors.backgroundEnd,
     ],
-    stops: [0, 0.5, 1],
+    stops: const [0, 0.5, 1],
   );
 
-  static const primaryButton = LinearGradient(
+  static LinearGradient get primaryButton => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [AppColors.primary, AppColors.primaryDark],
@@ -257,7 +266,7 @@ TextStyle textFieldFontStyle = const TextStyle(
   color: Colors.black,
   fontFamilyFallback: AppFonts.fallbackFamilies,
 );
-SizedBox loadingProcess = SizedBox(
+SizedBox get loadingProcess => SizedBox(
   height: 20,
   width: 20,
   child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.deepTeal),
@@ -500,9 +509,8 @@ class AppTextStyles {
 class AppDecorations {
   AppDecorations._();
 
-  static const pageBackground = BoxDecoration(
-    gradient: AppGradients.pageBackground,
-  );
+  static BoxDecoration get pageBackground =>
+      BoxDecoration(gradient: AppGradients.pageBackground);
 
   static BoxDecoration loginCard({required bool compact}) {
     return BoxDecoration(
@@ -520,13 +528,14 @@ class AppDecorations {
     boxShadow: AppShadows.statusCard,
   );
 
-  static final primaryButton = BoxDecoration(
+  static BoxDecoration get primaryButton => BoxDecoration(
     gradient: AppGradients.primaryButton,
     borderRadius: BorderRadius.circular(AppRadii.field),
     boxShadow: AppShadows.primaryButton,
   );
 
-  static const sidebar = BoxDecoration(color: AppColors.sidebarBackground);
+  static BoxDecoration get sidebar =>
+      BoxDecoration(color: AppColors.sidebarBackground);
 
   static const topBar = BoxDecoration(
     color: AppColors.surface,
@@ -556,7 +565,7 @@ class AppButtonStyles {
     textStyle: AppTextStyles.button,
   );
 
-  static final link = TextButton.styleFrom(
+  static ButtonStyle get link => TextButton.styleFrom(
     foregroundColor: AppColors.primary,
     padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
     minimumSize: const Size(0, 40),
@@ -564,7 +573,7 @@ class AppButtonStyles {
     textStyle: AppTextStyles.link,
   );
 
-  static final tableOpen = FilledButton.styleFrom(
+  static ButtonStyle get tableOpen => FilledButton.styleFrom(
     minimumSize: const Size(86, AppSizes.inputMinHeight),
     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
     elevation: 0,
@@ -693,7 +702,7 @@ class AppTheme {
         space: 1,
       ),
       iconTheme: const IconThemeData(color: AppColors.textPrimary),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.primary,
         circularTrackColor: AppColors.primaryLight,
       ),

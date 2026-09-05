@@ -76,7 +76,7 @@ class _EditorHeader extends GetView<LegislationController> {
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(AppRadii.field),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.policy_outlined,
                   color: AppColors.primaryDark,
                   size: 21,
@@ -263,7 +263,7 @@ class _PolicyIntroduction extends StatelessWidget {
             color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(AppRadii.field),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.verified_user_outlined,
             color: AppColors.primaryDark,
             size: 21,

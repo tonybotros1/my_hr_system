@@ -227,15 +227,18 @@ class _PublicHolidayEditorDialogState
 }
 
 class _DialogLoader extends StatelessWidget {
-  const _DialogLoader({this.color = AppColors.primary});
+  const _DialogLoader({this.color});
 
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
       dimension: 17,
-      child: CircularProgressIndicator(strokeWidth: 2, color: color),
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: color ?? AppColors.primary,
+      ),
     );
   }
 }

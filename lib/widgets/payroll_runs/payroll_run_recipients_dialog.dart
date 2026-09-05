@@ -86,7 +86,7 @@ class _RecipientsDialogState extends State<_RecipientsDialog> {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.forward_to_inbox_rounded,
                     color: AppColors.primary,
                   ),

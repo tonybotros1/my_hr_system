@@ -1,12 +1,12 @@
 {
-    "name": "my_hr_system",
-    "short_name": "my_hr_system",
+    "name": "DataHub AI HR",
+    "short_name": "DataHub HR",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F4F8F8",
+    "theme_color": "#087870",
+    "description": "Employee administration, payroll, and leave management with DataHub AI.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

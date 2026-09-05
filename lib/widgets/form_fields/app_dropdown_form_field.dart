@@ -377,7 +377,7 @@ class _SearchableValueDialogState<T> extends State<_SearchableValueDialog<T>> {
                                       ),
                                     ),
                                     if (selected)
-                                      const Icon(
+                                      Icon(
                                         Icons.check_rounded,
                                         color: AppColors.primary,
                                         size: 20,

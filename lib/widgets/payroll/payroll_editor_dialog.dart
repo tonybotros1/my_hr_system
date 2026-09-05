@@ -167,7 +167,7 @@ class _HeaderActions extends GetView<PayrollController> {
               textStyle: AppTextStyles.link.copyWith(fontSize: 13),
             ),
             child: controller.isSaving.value
-                ? const SizedBox.square(
+                ? SizedBox.square(
                     dimension: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
@@ -383,7 +383,7 @@ class _SectionCard extends StatelessWidget {
                   Container(
                     width: 9,
                     height: 9,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),

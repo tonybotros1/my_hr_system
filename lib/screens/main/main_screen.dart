@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../consts.dart';
 import '../../controllers/main_controllers/main_screen_controller.dart';
+import '../../services/theme_controller.dart';
 import '../../widgets/main_shell/main_sidebar.dart';
 
 class MainScreen extends GetView<MainScreenController> {
@@ -12,30 +13,35 @@ class MainScreen extends GetView<MainScreenController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.mainCanvas,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth <= AppSizes.mainMobileBreakpoint;
-          return Obx(() {
-            final sidebarOpen = controller.sidebarIsOpen(compact: compact);
-            if (compact) {
-              return _CompactShell(
+    final themeController = Get.find<ThemeController>();
+    return Obx(() {
+      themeController.selectedPaletteId.value;
+      return Scaffold(
+        backgroundColor: AppColors.mainCanvas,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth <= AppSizes.mainMobileBreakpoint;
+            return Obx(() {
+              final sidebarOpen = controller.sidebarIsOpen(compact: compact);
+              if (compact) {
+                return _CompactShell(
+                  sidebarOpen: sidebarOpen,
+                  availableWidth: constraints.maxWidth,
+                  activeRouteName: screenRouteName,
+                );
+              }
+              return _DesktopShell(
                 sidebarOpen: sidebarOpen,
-                availableWidth: constraints.maxWidth,
+                sidebarWidth: controller.sidebarWidth.value,
+                resizing: controller.isResizingSidebar.value,
                 activeRouteName: screenRouteName,
               );
-            }
-            return _DesktopShell(
-              sidebarOpen: sidebarOpen,
-              sidebarWidth: controller.sidebarWidth.value,
-              resizing: controller.isResizingSidebar.value,
-              activeRouteName: screenRouteName,
-            );
-          });
-        },
-      ),
-    );
+            });
+          },
+        ),
+      );
+    });
   }
 }
 

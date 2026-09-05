@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../consts.dart';
 import '../../controllers/main_controllers/main_screen_controller.dart';
+import '../../routes/app_routes.dart';
 import 'company_brand.dart';
 import 'sidebar_navigation_item.dart';
 
@@ -59,9 +60,12 @@ class MainSidebar extends GetView<MainScreenController> {
                   activeRouteName: activeRouteName,
                 ),
               ),
-              const Divider(color: AppColors.sidebarDivider),
+              Divider(color: AppColors.sidebarDivider),
               const SizedBox(height: AppSpacing.md),
-              const _SidebarFooter(),
+              _SidebarFooter(
+                compact: compact,
+                activeRouteName: activeRouteName,
+              ),
             ],
           ),
         ),
@@ -71,7 +75,10 @@ class MainSidebar extends GetView<MainScreenController> {
 }
 
 class _SidebarFooter extends GetView<MainScreenController> {
-  const _SidebarFooter();
+  const _SidebarFooter({required this.compact, required this.activeRouteName});
+
+  final bool compact;
+  final String? activeRouteName;
 
   @override
   Widget build(BuildContext context) {
@@ -123,35 +130,71 @@ class _SidebarFooter extends GetView<MainScreenController> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          TextButton.icon(
-            onPressed: loggingOut ? null : controller.requestLogout,
-            style: TextButton.styleFrom(
-              alignment: Alignment.centerLeft,
-              foregroundColor: AppColors.sidebarText,
-              disabledForegroundColor: AppColors.sidebarLabel,
-              backgroundColor: AppColors.sidebarActive,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _SidebarCircleAction(
+                tooltip: 'Settings',
+                icon: Icons.settings_rounded,
+                selected: AppRoutes.isMenuRouteActive(
+                  '/settings',
+                  activeRouteName,
+                ),
+                onPressed: () => controller.openSettings(compact: compact),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.field),
+              const SizedBox(width: AppSpacing.xs),
+              _SidebarCircleAction(
+                tooltip: loggingOut ? 'Signing out' : 'Sign out',
+                icon: Icons.logout_rounded,
+                onPressed: loggingOut ? null : controller.requestLogout,
+                child: loggingOut
+                    ? SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.sidebarText,
+                        ),
+                      )
+                    : null,
               ),
-            ),
-            icon: loggingOut
-                ? const SizedBox.square(
-                    dimension: 17,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.sidebarText,
-                    ),
-                  )
-                : const Icon(Icons.logout_rounded, size: 19),
-            label: Text(loggingOut ? 'Signing out…' : 'Sign out'),
+            ],
           ),
         ],
       );
     });
+  }
+}
+
+class _SidebarCircleAction extends StatelessWidget {
+  const _SidebarCircleAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.selected = false,
+    this.child,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool selected;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        fixedSize: const Size.square(40),
+        foregroundColor: selected ? AppColors.surface : AppColors.sidebarText,
+        disabledForegroundColor: AppColors.sidebarLabel,
+        backgroundColor: selected ? AppColors.primary : AppColors.sidebarActive,
+        hoverColor: AppColors.primaryDark,
+        shape: const CircleBorder(),
+      ),
+      icon: child ?? Icon(icon, size: 19),
+    );
   }
 }
 
@@ -165,7 +208,7 @@ class _NavigationBody extends GetView<MainScreenController> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value && controller.navigationItems.isEmpty) {
-        return const Center(
+        return Center(
           child: SizedBox.square(
             dimension: AppSizes.loadingIndicatorSize,
             child: CircularProgressIndicator(

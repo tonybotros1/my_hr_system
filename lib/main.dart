@@ -22,9 +22,12 @@ import 'screens/main/main_screen.dart';
 import 'services/authenticated_api_service.dart';
 import 'services/auth_session_service.dart';
 import 'services/hr_access_service.dart';
+import 'services/theme_controller.dart';
 import 'widgets/employees/employee_workspace_dialog.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ThemeController.restoreSavedPalette();
   runApp(const MyApp());
 }
 
@@ -57,6 +60,7 @@ class MyApp extends StatelessWidget {
         Get.put(AuthSessionService(), permanent: true);
         Get.put(AuthenticatedApiService(), permanent: true);
         Get.put(HrAccessService(), permanent: true);
+        Get.put(ThemeController(), permanent: true);
       }),
       initialRoute: AppRoutes.loading,
       defaultTransition: Transition.fadeIn,

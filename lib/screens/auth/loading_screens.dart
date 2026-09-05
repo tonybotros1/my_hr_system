@@ -65,7 +65,7 @@ class _RetryCard extends StatelessWidget {
     return _StatusCard(
       key: const ValueKey('retry'),
       children: [
-        const Icon(Icons.cloud_off_rounded, color: AppColors.primary, size: 34),
+        Icon(Icons.cloud_off_rounded, color: AppColors.primary, size: 34),
         const SizedBox(height: AppSpacing.md),
         Text(
           'Connection unavailable',

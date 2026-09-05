@@ -58,12 +58,12 @@ class _PageHeader extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const DecoratedBox(
+              DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                 ),
-                child: SizedBox.square(dimension: 8),
+                child: const SizedBox.square(dimension: 8),
               ),
               const SizedBox(width: AppSpacing.xs),
               Text('Public holiday', style: AppTextStyles.listCount),

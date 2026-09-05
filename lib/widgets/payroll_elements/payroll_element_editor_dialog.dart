@@ -492,12 +492,12 @@ class _SectionTitle extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.primary,
             shape: BoxShape.circle,
           ),
-          child: SizedBox.square(dimension: 9),
+          child: const SizedBox.square(dimension: 9),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(title, style: AppTextStyles.sectionTitle),

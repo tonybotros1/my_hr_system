@@ -166,7 +166,7 @@ class _CalendarDay extends StatelessWidget {
                   ),
                 ),
                 if (isHoliday)
-                  const Positioned(
+                  Positioned(
                     right: 6,
                     bottom: 6,
                     child: DecoratedBox(
@@ -174,7 +174,7 @@ class _CalendarDay extends StatelessWidget {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: SizedBox.square(dimension: 6),
+                      child: const SizedBox.square(dimension: 6),
                     ),
                   ),
               ],

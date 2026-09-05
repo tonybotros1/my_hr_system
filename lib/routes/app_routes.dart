@@ -5,6 +5,7 @@ class AppRoutes {
   static const login = '/loginScreen';
   static const main = '/mainScreen';
   static const employeeWorkspace = '$main/employees/editor';
+  static const settings = '$main/settings';
   static const workspaceScreen = '$main/:screen';
   static const home = main;
 
@@ -19,6 +20,7 @@ class AppRoutes {
     'legislation': 'legislation',
     'employees': 'employees',
     'users': 'users',
+    'settings': 'settings',
   };
 
   static String normalizeMenuRoute(String? routeName) {

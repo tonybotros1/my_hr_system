@@ -780,7 +780,7 @@ class _DialogHeader extends GetView<EmployeesController> {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.mainCanvas,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),

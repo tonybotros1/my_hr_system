@@ -889,15 +889,18 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _SmallLoader extends StatelessWidget {
-  const _SmallLoader({this.color = AppColors.primary});
+  const _SmallLoader({this.color});
 
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
       dimension: 16,
-      child: CircularProgressIndicator(strokeWidth: 2, color: color),
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: color ?? AppColors.primary,
+      ),
     );
   }
 }

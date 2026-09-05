@@ -206,15 +206,13 @@ class DropdownController extends GetxController {
                                 borderRadius: BorderRadius.circular(
                                   AppRadii.field,
                                 ),
-                                borderSide: const BorderSide(
-                                  color: AppColors.border,
-                                ),
+                                borderSide: BorderSide(color: AppColors.border),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(
                                   AppRadii.field,
                                 ),
-                                borderSide: const BorderSide(
+                                borderSide: BorderSide(
                                   color: AppColors.primary,
                                   width: 2,
                                 ),

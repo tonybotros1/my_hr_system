@@ -61,12 +61,16 @@ class _LogoFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: AppGradients.primaryButton,
-        borderRadius: BorderRadius.all(Radius.circular(7)),
+        borderRadius: const BorderRadius.all(Radius.circular(7)),
       ),
-      child: Icon(Icons.business_rounded, color: AppColors.surface, size: 21),
+      child: const Icon(
+        Icons.business_rounded,
+        color: AppColors.surface,
+        size: 21,
+      ),
     );
   }
 }

@@ -44,7 +44,8 @@ The application uses the existing DataHub AI FastAPI backend and MongoDB databas
 - Company name and logo in the sidebar.
 - Direct HR screen links without the old nested HR menu tree.
 - Resizable desktop sidebar and collapsible compact sidebar.
-- Logout action at the bottom of the sidebar.
+- Circular Settings and Logout actions at the bottom of the sidebar.
+- Five responsive color palettes with live preview and device-level persistence.
 - Responsive tables whose visible row count follows the available screen height.
 - Horizontally scrollable tables at narrow browser widths.
 - Browser-friendly routes for each screen.
@@ -67,6 +68,8 @@ The application uses the existing DataHub AI FastAPI backend and MongoDB databas
 | Users | Create HR users, manage status, admin access, expiry, password, and screen permissions | `/#/mainScreen/users` |
 
 The Users screen is shown under **Admin's Screens** and is available only when the signed-in user is an administrator.
+
+Settings is available to every authenticated HR user at `/#/mainScreen/settings`. A selected color palette is applied immediately across the workspace and restored on the next visit from that browser/device.
 
 ### Employee workspace
 
@@ -155,11 +158,11 @@ my_hr_system/
 │   │   ├── main_controllers/          # Shell, sidebar, routing, and logout
 │   │   ├── payroll_controllers/       # Payroll-related module controllers
 │   │   └── user_controllers/          # Admin user management
-│   ├── models/                        # Typed API/domain models
+│   ├── models/                        # Typed API/domain models and color palettes
 │   ├── routes/
 │   │   └── app_routes.dart            # GetX paths and backend-menu normalization
-│   ├── screens/                       # Top-level feature screens
-│   ├── services/                      # API, session, permissions, browser, documents
+│   ├── screens/                       # Top-level feature and settings screens
+│   ├── services/                      # API, session, theme, permissions, browser, documents
 │   ├── widgets/
 │   │   ├── dialogs/                   # Shared alert/confirmation dialogs
 │   │   ├── employees/                 # Employee workspace components
@@ -215,6 +218,8 @@ Project-wide theme values live in `lib/consts.dart`:
 - `AppDurations`
 - `AppGradients`
 - Shared text styles, decorations, and button styles
+
+The Settings screen presents the palettes declared in `lib/models/settings/app_color_palette.dart`. `ThemeController` applies the selected semantic colors and stores the palette ID in `SharedPreferences`, so feature screens continue to consume the same shared `AppColors` tokens without maintaining their own theme state.
 
 Use the shared form controls for consistent sizing and behavior:
 
@@ -429,6 +434,7 @@ The test suite currently covers areas including:
 - Shared 35 px form-field sizing.
 - Reusable date-field behavior.
 - Responsive main-shell layout.
+- Persisted theme selection and Settings route mapping.
 - HR responsibility and per-screen navigation filtering.
 - User-model screen permissions.
 - Browser/dialog stack regressions in the employee workspace.
@@ -437,6 +443,20 @@ The test suite currently covers areas including:
 When changing dialogs or GetX routes, test repeated open/close cycles and Browser Back. This prevents duplicate `GlobalKey<FormState>` and over-popping regressions.
 
 ## Production web deployment
+
+### Firebase release configuration
+
+The new HR frontend is configured for the dedicated Firebase Hosting site `datahubai-hr` in project `compass-automatic-gear`. Its default address is `https://datahubai-hr.web.app`; a custom domain can be attached to this site later.
+
+The explicit `site` in `firebase.json` targets only the HR website. Deploy from this project directory using:
+
+```bash
+flutter build web --release --no-source-maps \
+  --dart-define=BACKEND_URL=https://datahubai-backend.onrender.com
+firebase deploy --only hosting --project compass-automatic-gear
+```
+
+Always include the production `BACKEND_URL` when building for deployment: the default in `AppConfig` is a local development address. Only the generated `build/web/` assets are published, and source maps are excluded. Hosting requires cache revalidation so browsers can pick up changed bundles on a subsequent visit.
 
 ### Build
 
