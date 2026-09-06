@@ -746,7 +746,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                                               : AppColors.error,
                                           width:
                                               widget.focusNode?.hasFocus == true
-                                              ? 2
+                                              ? 1.3
                                               : 1,
                                         ),
                                         borderRadius: BorderRadius.circular(

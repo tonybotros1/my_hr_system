@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../consts.dart';
 
@@ -12,9 +13,13 @@ class AppTextFormField extends StatelessWidget {
     this.focusNode,
     this.keyboardType,
     this.textInputAction,
+    this.autofocus = false,
     this.obscureText = false,
     this.suffixIcon,
     this.onFieldSubmitted,
+    this.onChanged,
+    this.inputFormatters,
+    this.autovalidateMode,
     this.autofillHints,
     this.enabled = true,
     this.maxLines = 1,
@@ -22,6 +27,7 @@ class AppTextFormField extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.readOnly = false,
     this.onTap,
+    this.fillColor,
   });
 
   final String label;
@@ -31,9 +37,13 @@ class AppTextFormField extends StatelessWidget {
   final FocusNode? focusNode;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
+  final bool autofocus;
   final bool obscureText;
   final Widget? suffixIcon;
   final ValueChanged<String>? onFieldSubmitted;
+  final ValueChanged<String>? onChanged;
+  final List<TextInputFormatter>? inputFormatters;
+  final AutovalidateMode? autovalidateMode;
   final Iterable<String>? autofillHints;
   final bool enabled;
   final int? maxLines;
@@ -41,6 +51,7 @@ class AppTextFormField extends StatelessWidget {
   final TextCapitalization textCapitalization;
   final bool readOnly;
   final VoidCallback? onTap;
+  final Color? fillColor;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +60,7 @@ class AppTextFormField extends StatelessWidget {
     return FormField<String>(
       initialValue: controller.text,
       enabled: enabled,
+      autovalidateMode: autovalidateMode,
       validator: validator == null ? null : (_) => validator!(controller.text),
       builder: (field) {
         final hasError = field.hasError;
@@ -65,10 +77,15 @@ class AppTextFormField extends StatelessWidget {
             TextField(
               controller: controller,
               focusNode: focusNode,
+              autofocus: autofocus,
               keyboardType: keyboardType,
               textInputAction: textInputAction,
               obscureText: obscureText,
-              onChanged: field.didChange,
+              inputFormatters: inputFormatters,
+              onChanged: (value) {
+                field.didChange(value);
+                onChanged?.call(value);
+              },
               onSubmitted: onFieldSubmitted,
               autofillHints: autofillHints,
               enabled: enabled,
@@ -77,10 +94,13 @@ class AppTextFormField extends StatelessWidget {
               textCapitalization: textCapitalization,
               readOnly: readOnly,
               onTap: onTap,
-              style: AppTextStyles.input,
+              style: enabled
+                  ? AppTextStyles.input
+                  : AppTextStyles.input.copyWith(color: AppColors.textHint),
               cursorColor: AppColors.primary,
               decoration: InputDecoration(
                 hintText: hintText,
+                fillColor: fillColor,
                 suffixIcon:
                     suffixIcon ?? (multiline ? null : const SizedBox.shrink()),
                 suffixIconConstraints: suffixIcon == null && !multiline

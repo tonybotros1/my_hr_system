@@ -1,3 +1,5 @@
+import '../../utils/app_date_utils.dart';
+
 class PublicHolidayModel {
   const PublicHolidayModel({
     required this.id,
@@ -59,24 +61,7 @@ class PublicHolidayLegislationOption {
   }
 }
 
-DateTime? parsePublicHolidayDate(dynamic value) {
-  final source = value?.toString().trim() ?? '';
-  if (source.isEmpty) return null;
-  final datePart = source.length >= 10 ? source.substring(0, 10) : source;
-  final parts = datePart.split('-');
-  if (parts.length == 3) {
-    final year = int.tryParse(parts[0]);
-    final month = int.tryParse(parts[1]);
-    final day = int.tryParse(parts[2]);
-    if (year != null && month != null && day != null) {
-      return DateTime(year, month, day);
-    }
-  }
-  final parsed = DateTime.tryParse(source);
-  return parsed == null
-      ? null
-      : DateTime(parsed.year, parsed.month, parsed.day);
-}
+DateTime? parsePublicHolidayDate(dynamic value) => parseAppDateValue(value);
 
 String publicHolidayDateKey(DateTime date) {
   final year = date.year.toString().padLeft(4, '0');

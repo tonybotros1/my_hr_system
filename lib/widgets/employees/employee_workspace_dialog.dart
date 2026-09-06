@@ -9,6 +9,7 @@ import '../../controllers/employee_controllers/employees_controller.dart';
 import '../../models/employees/employee_model.dart';
 import '../../routes/app_routes.dart';
 import '../../services/browser_dialog_history.dart';
+import '../../services/authenticated_api_service.dart';
 import '../../services/hr_access_service.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
@@ -29,7 +30,15 @@ Future<void> showEmployeeWorkspaceDialog(BuildContext context) async {
   }
   _employeeWorkspaceRouteActive = true;
   try {
-    await Get.toNamed<void>(AppRoutes.employeeWorkspace);
+    final employeeId = Get.find<EmployeesController>().currentEmployeeId;
+    if (employeeId.isEmpty) {
+      await Get.toNamed<void>(AppRoutes.employeeWorkspace);
+    } else {
+      await Get.toNamed<void>(
+        AppRoutes.employeeWorkspace,
+        parameters: <String, String>{'employeeId': employeeId},
+      );
+    }
   } finally {
     _employeeWorkspaceRouteActive = false;
   }
@@ -44,39 +53,100 @@ class EmployeeWorkspaceRoute extends StatefulWidget {
 
 class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
   final _formKey = GlobalKey<FormState>();
+  late Future<_WorkspacePreparation> _preparation;
+
+  @override
+  void initState() {
+    super.initState();
+    _preparation = _prepare();
+  }
+
+  Future<_WorkspacePreparation> _prepare() async {
+    final requestedEmployeeId = Get.parameters['employeeId']?.trim() ?? '';
+    try {
+      final accessService = Get.find<HrAccessService>();
+      final access =
+          accessService.currentAccess.value ?? await accessService.load();
+      if (!access.hasHrResponsibility || !access.canOpenRoute('/employees')) {
+        return const _WorkspacePreparation.denied();
+      }
+
+      final employeesController = Get.find<EmployeesController>();
+      if (requestedEmployeeId.isEmpty) {
+        employeesController.beginNewEmployee();
+        return const _WorkspacePreparation.ready();
+      }
+      if (employeesController.currentEmployeeId == requestedEmployeeId) {
+        return const _WorkspacePreparation.ready();
+      }
+      final loaded = await employeesController.loadEmployee(
+        requestedEmployeeId,
+      );
+      return loaded
+          ? const _WorkspacePreparation.ready()
+          : const _WorkspacePreparation.failed(
+              'The employee could not be restored. Return to Employees and try again.',
+            );
+    } on SessionExpiredException {
+      Get.offAllNamed(AppRoutes.login);
+      return const _WorkspacePreparation.navigating();
+    } on ApiRequestException catch (error) {
+      return _WorkspacePreparation.failed(error.message);
+    } catch (_) {
+      return const _WorkspacePreparation.failed(
+        'The employee workspace could not be loaded. Please try again.',
+      );
+    }
+  }
+
+  void _retry() {
+    setState(() => _preparation = _prepare());
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (Get.isRegistered<HrAccessService>()) {
-      final accessService = Get.find<HrAccessService>();
-      return Obx(() {
-        final access = accessService.currentAccess.value;
-        if (access == null) {
-          return ColoredBox(
-            color: AppColors.mainCanvas,
-            child: const Center(child: CircularProgressIndicator()),
-          );
+    return FutureBuilder<_WorkspacePreparation>(
+      future: _preparation,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _EmployeeWorkspaceLoading();
         }
-        if (!access.canOpenRoute('/employees')) {
-          return _EmployeeWorkspaceDenied(
-            onClose: () => Navigator.of(context).maybePop(),
-          );
-        }
-        return _buildWorkspace();
-      });
-    }
-    return _buildWorkspace();
+        final preparation =
+            snapshot.data ??
+            const _WorkspacePreparation.failed(
+              'The employee workspace could not be loaded.',
+            );
+        return switch (preparation.status) {
+          _WorkspacePreparationStatus.ready => _buildWorkspace(),
+          _WorkspacePreparationStatus.denied => _EmployeeWorkspaceDenied(
+            onClose: () => _closeEmployeeWorkspace(context),
+          ),
+          _WorkspacePreparationStatus.failed => _EmployeeWorkspaceFailure(
+            message: preparation.message,
+            onRetry: _retry,
+            onClose: () => _closeEmployeeWorkspace(context),
+          ),
+          _WorkspacePreparationStatus.navigating =>
+            const _EmployeeWorkspaceLoading(),
+        };
+      },
+    );
   }
 
   Widget _buildWorkspace() {
     return ColoredBox(
       color: AppColors.dialogScrim,
       child: Dialog(
-        insetPadding: EdgeInsets.zero,
+        insetPadding: const EdgeInsets.all(AppSpacing.sm),
         clipBehavior: Clip.antiAlias,
         backgroundColor: AppColors.mainCanvas,
-        shape: const RoundedRectangleBorder(),
+        elevation: 24,
+        shadowColor: Colors.black.withValues(alpha: 0.22),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.editor),
+        ),
         child: SizedBox.expand(
+          key: const ValueKey('employee-workspace-surface'),
           child: Column(
             children: [
               _WorkspaceHeader(formKey: _formKey),
@@ -86,6 +156,101 @@ class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
         ),
       ),
     );
+  }
+}
+
+enum _WorkspacePreparationStatus { ready, denied, failed, navigating }
+
+class _WorkspacePreparation {
+  const _WorkspacePreparation.ready()
+    : status = _WorkspacePreparationStatus.ready,
+      message = '';
+  const _WorkspacePreparation.denied()
+    : status = _WorkspacePreparationStatus.denied,
+      message = '';
+  const _WorkspacePreparation.failed(this.message)
+    : status = _WorkspacePreparationStatus.failed;
+  const _WorkspacePreparation.navigating()
+    : status = _WorkspacePreparationStatus.navigating,
+      message = '';
+
+  final _WorkspacePreparationStatus status;
+  final String message;
+}
+
+class _EmployeeWorkspaceLoading extends StatelessWidget {
+  const _EmployeeWorkspaceLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      key: const ValueKey('employee-workspace-loading'),
+      color: AppColors.mainCanvas,
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _EmployeeWorkspaceFailure extends StatelessWidget {
+  const _EmployeeWorkspaceFailure({
+    required this.message,
+    required this.onRetry,
+    required this.onClose,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.mainCanvas,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 42,
+                color: AppColors.iconMuted,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMuted,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  OutlinedButton(
+                    onPressed: onClose,
+                    child: const Text('Close'),
+                  ),
+                  FilledButton(
+                    onPressed: onRetry,
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _closeEmployeeWorkspace(BuildContext context) {
+  final navigator = Navigator.of(context);
+  if (navigator.canPop()) {
+    navigator.pop<void>();
+  } else {
+    Get.offAllNamed(AppRoutes.employees);
   }
 }
 
@@ -139,7 +304,9 @@ class _WorkspaceHeader extends GetView<EmployeesController> {
       color: AppColors.primaryDark,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 880;
+          // The full action set needs more room than the form itself. Stack it
+          // below the identity before labels can overflow at laptop widths.
+          final compact = constraints.maxWidth < 1320;
           final identity = Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -272,7 +439,9 @@ class _WorkspaceActions extends GetView<EmployeesController> {
         _HeaderDivider(compact: compact),
         IconButton(
           tooltip: 'Close employee workspace',
-          onPressed: controller.isSaving.value ? null : () => Get.back<void>(),
+          onPressed: controller.isSaving.value
+              ? null
+              : () => _closeEmployeeWorkspace(context),
           style: IconButton.styleFrom(foregroundColor: Colors.white),
           icon: const Icon(Icons.close_rounded),
         ),
@@ -335,6 +504,42 @@ class _HeaderDot extends StatelessWidget {
   );
 }
 
+class _EmployeeFormFocusNodes {
+  final fullName = FocusNode(debugLabel: 'employee.fullName');
+  final countryOfBirth = FocusNode(debugLabel: 'employee.countryOfBirth');
+  final placeOfBirth = FocusNode(debugLabel: 'employee.placeOfBirth');
+  final dateOfBirth = FocusNode(debugLabel: 'employee.dateOfBirth');
+  final gender = FocusNode(debugLabel: 'employee.gender');
+  final maritalStatus = FocusNode(debugLabel: 'employee.maritalStatus');
+  final legislation = FocusNode(debugLabel: 'employee.legislation');
+  final employer = FocusNode(debugLabel: 'employee.employer');
+  final department = FocusNode(debugLabel: 'employee.department');
+  final jobTitle = FocusNode(debugLabel: 'employee.jobTitle');
+  final location = FocusNode(debugLabel: 'employee.location');
+  final reportingManager = FocusNode(debugLabel: 'employee.reportingManager');
+  final payroll = FocusNode(debugLabel: 'employee.payroll');
+  final hireDate = FocusNode(debugLabel: 'employee.hireDate');
+  final endDate = FocusNode(debugLabel: 'employee.endDate');
+
+  void dispose() {
+    fullName.dispose();
+    countryOfBirth.dispose();
+    placeOfBirth.dispose();
+    dateOfBirth.dispose();
+    gender.dispose();
+    maritalStatus.dispose();
+    legislation.dispose();
+    employer.dispose();
+    department.dispose();
+    jobTitle.dispose();
+    location.dispose();
+    reportingManager.dispose();
+    payroll.dispose();
+    hireDate.dispose();
+    endDate.dispose();
+  }
+}
+
 class _WorkspaceBody extends StatefulWidget {
   const _WorkspaceBody({required this.formKey});
 
@@ -346,6 +551,7 @@ class _WorkspaceBody extends StatefulWidget {
 
 class _WorkspaceBodyState extends State<_WorkspaceBody> {
   final _personalPanelKey = GlobalKey();
+  final _focusNodes = _EmployeeFormFocusNodes();
   double? _personalPanelHeight;
 
   EmployeesController get controller => Get.find<EmployeesController>();
@@ -362,48 +568,58 @@ class _WorkspaceBodyState extends State<_WorkspaceBody> {
   }
 
   @override
+  void dispose() {
+    _focusNodes.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _measurePersonalPanel(),
     );
-    return Form(
-      key: widget.formKey,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final sideBySide = constraints.maxWidth >= 1250;
-            final personal = KeyedSubtree(
-              key: _personalPanelKey,
-              child: const _PersonalInformationPanel(),
-            );
-            final records = SizedBox(
-              height:
-                  _personalPanelHeight ?? AppSizes.employeeOverviewPanelHeight,
-              child: const _RelatedRecordsPanel(),
-            );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (sideBySide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 6, child: personal),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(flex: 6, child: records),
-                    ],
-                  )
-                else ...[
-                  personal,
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Form(
+        key: widget.formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final sideBySide = constraints.maxWidth >= 1250;
+              final personal = KeyedSubtree(
+                key: _personalPanelKey,
+                child: _PersonalInformationPanel(focusNodes: _focusNodes),
+              );
+              final records = SizedBox(
+                height:
+                    _personalPanelHeight ??
+                    AppSizes.employeeOverviewPanelHeight,
+                child: const _RelatedRecordsPanel(),
+              );
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (sideBySide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 6, child: personal),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(flex: 6, child: records),
+                      ],
+                    )
+                  else ...[
+                    personal,
+                    const SizedBox(height: AppSpacing.md),
+                    records,
+                  ],
                   const SizedBox(height: AppSpacing.md),
-                  records,
+                  _AssignmentPanel(focusNodes: _focusNodes),
                 ],
-                const SizedBox(height: AppSpacing.md),
-                const _AssignmentPanel(),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -411,7 +627,9 @@ class _WorkspaceBodyState extends State<_WorkspaceBody> {
 }
 
 class _PersonalInformationPanel extends StatefulWidget {
-  const _PersonalInformationPanel();
+  const _PersonalInformationPanel({required this.focusNodes});
+
+  final _EmployeeFormFocusNodes focusNodes;
 
   @override
   State<_PersonalInformationPanel> createState() =>
@@ -449,7 +667,10 @@ class _PersonalInformationPanelState extends State<_PersonalInformationPanel> {
         return false;
       },
       child: SizeChangedLayoutNotifier(
-        child: KeyedSubtree(key: _fieldsKey, child: const _PersonalFields()),
+        child: KeyedSubtree(
+          key: _fieldsKey,
+          child: _PersonalFields(focusNodes: widget.focusNodes),
+        ),
       ),
     );
   }
@@ -772,7 +993,9 @@ class _ImagePlaceholder extends StatelessWidget {
 }
 
 class _PersonalFields extends GetView<EmployeesController> {
-  const _PersonalFields();
+  const _PersonalFields({required this.focusNodes});
+
+  final _EmployeeFormFocusNodes focusNodes;
 
   @override
   Widget build(BuildContext context) {
@@ -780,57 +1003,80 @@ class _PersonalFields extends GetView<EmployeesController> {
       children: [
         _FieldSpan(
           span: 2,
+          focusOrder: 1,
           child: AppTextFormField(
             label: 'Full Name',
             hintText: 'Employee full name',
             controller: controller.fullName,
             validator: controller.requiredText,
+            focusNode: focusNodes.fullName,
+            autofocus: true,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => focusNodes.countryOfBirth.requestFocus(),
             textCapitalization: TextCapitalization.words,
           ),
         ),
         _FieldSpan(
+          focusOrder: 2,
           child: _LookupField(
             label: 'Country of Birth',
             textController: controller.countryOfBirth,
             selectedId: controller.countryOfBirthId,
             onOpen: controller.countries,
+            focusNode: focusNodes.countryOfBirth,
+            nextFocusNode: focusNodes.placeOfBirth,
           ),
         ),
         _FieldSpan(
+          focusOrder: 3,
           child: AppTextFormField(
             label: 'Place of Birth',
             hintText: 'Place of birth',
             controller: controller.placeOfBirth,
+            focusNode: focusNodes.placeOfBirth,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => focusNodes.dateOfBirth.requestFocus(),
           ),
         ),
         _FieldSpan(
+          focusOrder: 4,
           child: _DateField(
             label: 'Date of Birth',
             controller: controller.dateOfBirth,
+            focusNode: focusNodes.dateOfBirth,
           ),
         ),
         _FieldSpan(
+          focusOrder: 5,
           child: _LookupField(
             label: 'Gender',
             textController: controller.gender,
             selectedId: controller.genderId,
             onOpen: () => controller.listValues('GENDER'),
+            focusNode: focusNodes.gender,
+            nextFocusNode: focusNodes.maritalStatus,
           ),
         ),
         _FieldSpan(
+          focusOrder: 6,
           child: _LookupField(
             label: 'Marital Status',
             textController: controller.maritalStatus,
             selectedId: controller.maritalStatusId,
             onOpen: () => controller.listValues('MARITAL_STATUS'),
+            focusNode: focusNodes.maritalStatus,
+            nextFocusNode: focusNodes.legislation,
           ),
         ),
         _FieldSpan(
+          focusOrder: 7,
           child: _LookupField(
             label: 'Legislation *',
             textController: controller.legislation,
             selectedId: controller.legislationId,
             onOpen: controller.legislations,
+            focusNode: focusNodes.legislation,
+            nextFocusNode: focusNodes.employer,
             required: true,
           ),
         ),
@@ -909,7 +1155,9 @@ class _RelatedRecordsPanel extends GetView<EmployeesController> {
 }
 
 class _AssignmentPanel extends GetView<EmployeesController> {
-  const _AssignmentPanel();
+  const _AssignmentPanel({required this.focusNodes});
+
+  final _EmployeeFormFocusNodes focusNodes;
 
   @override
   Widget build(BuildContext context) {
@@ -945,9 +1193,9 @@ class _AssignmentPanel extends GetView<EmployeesController> {
               ],
             ),
             if (selected == EmployeeRecordKind.address)
-              const Padding(
-                padding: EdgeInsets.all(AppSpacing.md),
-                child: _AssignmentInformation(),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: _AssignmentInformation(focusNodes: focusNodes),
               )
             else
               SizedBox(
@@ -1002,7 +1250,9 @@ class _AssignmentPanel extends GetView<EmployeesController> {
 }
 
 class _AssignmentInformation extends StatefulWidget {
-  const _AssignmentInformation();
+  const _AssignmentInformation({required this.focusNodes});
+
+  final _EmployeeFormFocusNodes focusNodes;
 
   @override
   State<_AssignmentInformation> createState() => _AssignmentInformationState();
@@ -1069,9 +1319,12 @@ class _AssignmentInformationState extends State<_AssignmentInformation> {
             final sideBySide = constraints.maxWidth >= 1250;
             final employment = _trackedCard(
               _employmentKey,
-              const _EmploymentCard(),
+              _EmploymentCard(focusNodes: widget.focusNodes),
             );
-            final contract = _trackedCard(_contractKey, const _ContractCard());
+            final contract = _trackedCard(
+              _contractKey,
+              _ContractCard(focusNodes: widget.focusNodes),
+            );
             if (sideBySide) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1099,7 +1352,9 @@ class _AssignmentInformationState extends State<_AssignmentInformation> {
 }
 
 class _EmploymentCard extends GetView<EmployeesController> {
-  const _EmploymentCard();
+  const _EmploymentCard({required this.focusNodes});
+
+  final _EmployeeFormFocusNodes focusNodes;
 
   @override
   Widget build(BuildContext context) {
@@ -1108,8 +1363,11 @@ class _EmploymentCard extends GetView<EmployeesController> {
       child: _ResponsiveFieldGrid(
         children: [
           _FieldSpan(
+            focusOrder: 8,
             child: _EmploymentLookupField(
               label: 'Employer',
+              focusNode: focusNodes.employer,
+              nextFocusNode: focusNodes.department,
               textController: controller.employer,
               selectedId: controller.employerId,
               onOpen: () => controller.listValues('EMPLOYERS'),
@@ -1123,8 +1381,11 @@ class _EmploymentCard extends GetView<EmployeesController> {
             ),
           ),
           _FieldSpan(
+            focusOrder: 9,
             child: _EmploymentLookupField(
               label: 'Department',
+              focusNode: focusNodes.department,
+              nextFocusNode: focusNodes.jobTitle,
               textController: controller.department,
               selectedId: controller.departmentId,
               onOpen: () => controller.listValues('DEPARTMENTS'),
@@ -1138,8 +1399,11 @@ class _EmploymentCard extends GetView<EmployeesController> {
             ),
           ),
           _FieldSpan(
+            focusOrder: 10,
             child: _EmploymentLookupField(
               label: 'Job Title',
+              focusNode: focusNodes.jobTitle,
+              nextFocusNode: focusNodes.location,
               textController: controller.jobTitle,
               selectedId: controller.jobTitleId,
               onOpen: () => controller.listValues('JOBS'),
@@ -1153,8 +1417,11 @@ class _EmploymentCard extends GetView<EmployeesController> {
             ),
           ),
           _FieldSpan(
+            focusOrder: 11,
             child: _EmploymentLookupField(
               label: 'Location',
+              focusNode: focusNodes.location,
+              nextFocusNode: focusNodes.reportingManager,
               textController: controller.location,
               selectedId: controller.locationId,
               onOpen: () => controller.listValues('LOCATIONS'),
@@ -1168,8 +1435,11 @@ class _EmploymentCard extends GetView<EmployeesController> {
             ),
           ),
           _FieldSpan(
+            focusOrder: 12,
             child: _EmploymentLookupField(
               label: 'Reporting Manager',
+              focusNode: focusNodes.reportingManager,
+              nextFocusNode: focusNodes.payroll,
               textController: controller.reportingManager,
               selectedId: controller.reportingManagerId,
               onOpen: () => controller.listValues('REPORTING_MANAGER'),
@@ -1183,8 +1453,11 @@ class _EmploymentCard extends GetView<EmployeesController> {
             ),
           ),
           _FieldSpan(
+            focusOrder: 13,
             child: _EmploymentLookupField(
               label: 'Payroll *',
+              focusNode: focusNodes.payroll,
+              nextFocusNode: focusNodes.hireDate,
               textController: controller.payroll,
               selectedId: controller.payrollId,
               onOpen: controller.payrolls,
@@ -1198,7 +1471,9 @@ class _EmploymentCard extends GetView<EmployeesController> {
 }
 
 class _ContractCard extends GetView<EmployeesController> {
-  const _ContractCard();
+  const _ContractCard({required this.focusNodes});
+
+  final _EmployeeFormFocusNodes focusNodes;
 
   @override
   Widget build(BuildContext context) {
@@ -1213,6 +1488,8 @@ class _ContractCard extends GetView<EmployeesController> {
                 child: _DateField(
                   label: 'Hire Date',
                   controller: controller.hireDate,
+                  focusNode: focusNodes.hireDate,
+                  focusOrder: 14,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -1220,6 +1497,8 @@ class _ContractCard extends GetView<EmployeesController> {
                 child: _DateField(
                   label: 'End Date',
                   controller: controller.endDate,
+                  focusNode: focusNodes.endDate,
+                  focusOrder: 15,
                 ),
               ),
             ],
@@ -1514,6 +1793,8 @@ class _LookupField extends StatelessWidget {
     required this.textController,
     required this.selectedId,
     required this.onOpen,
+    required this.focusNode,
+    required this.nextFocusNode,
     this.required = false,
   });
 
@@ -1521,6 +1802,8 @@ class _LookupField extends StatelessWidget {
   final TextEditingController textController;
   final RxString selectedId;
   final Future<Map<String, dynamic>> Function() onOpen;
+  final FocusNode focusNode;
+  final FocusNode nextFocusNode;
   final bool required;
 
   @override
@@ -1534,6 +1817,8 @@ class _LookupField extends StatelessWidget {
           textcontroller: textController.text,
           showedSelectedName: 'name',
           validator: required,
+          focusNode: focusNode,
+          nextFocusNode: nextFocusNode,
           onOpen: onOpen,
           onDelete: () {
             selectedId.value = '';
@@ -1555,6 +1840,8 @@ class _EmploymentLookupField extends StatelessWidget {
     required this.textController,
     required this.selectedId,
     required this.onOpen,
+    required this.focusNode,
+    required this.nextFocusNode,
     this.onManage,
     this.required = false,
   });
@@ -1563,6 +1850,8 @@ class _EmploymentLookupField extends StatelessWidget {
   final TextEditingController textController;
   final RxString selectedId;
   final Future<Map<String, dynamic>> Function() onOpen;
+  final FocusNode focusNode;
+  final FocusNode nextFocusNode;
   final VoidCallback? onManage;
   final bool required;
 
@@ -1577,30 +1866,34 @@ class _EmploymentLookupField extends StatelessWidget {
             textController: textController,
             selectedId: selectedId,
             onOpen: onOpen,
+            focusNode: focusNode,
+            nextFocusNode: nextFocusNode,
             required: required,
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
         Padding(
           padding: const EdgeInsets.only(top: 23),
-          child: SizedBox.square(
-            dimension: AppSizes.inputMinHeight,
-            child: onManage == null
-                ? const SizedBox.shrink()
-                : IconButton(
-                    tooltip: 'Manage $label',
-                    onPressed: onManage,
-                    style: IconButton.styleFrom(
-                      foregroundColor: AppColors.primaryDark,
-                      backgroundColor: AppColors.primaryLight,
-                      hoverColor: AppColors.segmentBackground,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.field),
-                        side: const BorderSide(color: AppColors.borderStrong),
+          child: ExcludeFocus(
+            child: SizedBox.square(
+              dimension: AppSizes.inputMinHeight,
+              child: onManage == null
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      tooltip: 'Manage $label',
+                      onPressed: onManage,
+                      style: IconButton.styleFrom(
+                        foregroundColor: AppColors.primaryDark,
+                        backgroundColor: AppColors.primaryLight,
+                        hoverColor: AppColors.segmentBackground,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadii.field),
+                          side: const BorderSide(color: AppColors.borderStrong),
+                        ),
                       ),
+                      icon: const Icon(Icons.add_card_outlined, size: 18),
                     ),
-                    icon: const Icon(Icons.add_card_outlined, size: 18),
-                  ),
+            ),
           ),
         ),
       ],
@@ -1609,19 +1902,32 @@ class _EmploymentLookupField extends StatelessWidget {
 }
 
 class _DateField extends StatelessWidget {
-  const _DateField({required this.label, required this.controller});
+  const _DateField({
+    required this.label,
+    required this.controller,
+    required this.focusNode,
+    this.focusOrder,
+  });
 
   final String label;
   final TextEditingController controller;
+  final FocusNode focusNode;
+  final double? focusOrder;
 
   @override
   Widget build(BuildContext context) {
-    return AppDateFormField(
+    final field = AppDateFormField(
       label: label,
       controller: controller,
+      focusNode: focusNode,
+      textInputAction: TextInputAction.next,
       firstDate: DateTime(1940),
       lastDate: DateTime(2200),
     );
+    final order = focusOrder;
+    return order == null
+        ? field
+        : FocusTraversalOrder(order: NumericFocusOrder(order), child: field);
   }
 }
 
@@ -1649,7 +1955,12 @@ class _ResponsiveFieldGrid extends StatelessWidget {
                 final span = math.min(field.span, columns);
                 return SizedBox(
                   width: unitWidth * span + AppSpacing.md * (span - 1),
-                  child: field.child,
+                  child: field.focusOrder == null
+                      ? field.child
+                      : FocusTraversalOrder(
+                          order: NumericFocusOrder(field.focusOrder!),
+                          child: field.child,
+                        ),
                 );
               })
               .toList(growable: false),
@@ -1660,10 +1971,11 @@ class _ResponsiveFieldGrid extends StatelessWidget {
 }
 
 class _FieldSpan {
-  const _FieldSpan({required this.child, this.span = 1});
+  const _FieldSpan({required this.child, this.span = 1, this.focusOrder});
 
   final Widget child;
   final int span;
+  final double? focusOrder;
 }
 
 class _SaveFirstMessage extends StatelessWidget {

@@ -8,6 +8,7 @@ import '../../routes/app_routes.dart';
 import '../../services/auth_session_service.dart';
 import '../../services/authenticated_api_service.dart';
 import '../../services/hr_access_service.dart';
+import '../../utils/app_date_utils.dart';
 import '../../widgets/dialogs/app_alert_dialog.dart';
 
 class UsersController extends GetxController {
@@ -371,7 +372,7 @@ class UsersController extends GetxController {
   }
 
   String? validateExpiryDate(String? value) {
-    final date = DateTime.tryParse(value?.trim() ?? '');
+    final date = parseAppDate(value?.trim() ?? '');
     if (date == null) return 'Select an expiry date.';
     final today = DateUtils.dateOnly(DateTime.now());
     if (!DateUtils.dateOnly(date).isAfter(today)) {

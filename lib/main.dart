@@ -29,7 +29,11 @@ import 'widgets/employees/employee_workspace_dialog.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.restoreSavedPalette();
-  runApp(const MyApp());
+  runApp(
+    MyApp(
+      startupEmployeeWorkspace: AppRoutes.employeeWorkspaceDeepLink(Uri.base),
+    ),
+  );
 }
 
 Bindings _mainBinding() {
@@ -50,7 +54,11 @@ Bindings _mainBinding() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({this.startupEmployeeWorkspace, super.key});
+
+  /// Captured before Flutter replaces the browser fragment with the loading
+  /// route, allowing a refreshed employee editor to be restored after auth.
+  final String? startupEmployeeWorkspace;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +79,11 @@ class MyApp extends StatelessWidget {
           name: AppRoutes.loading,
           page: () => const LoadingScreen(),
           binding: BindingsBuilder(() {
-            Get.lazyPut(LoadingScreenController.new);
+            Get.lazyPut(
+              () => LoadingScreenController(
+                startupEmployeeWorkspace: startupEmployeeWorkspace,
+              ),
+            );
           }),
         ),
         GetPage(
@@ -92,7 +104,7 @@ class MyApp extends StatelessWidget {
           binding: _mainBinding(),
           fullscreenDialog: true,
           opaque: false,
-          transition: Transition.noTransition,
+          transition: Transition.fadeIn,
         ),
         GetPage(
           name: AppRoutes.workspaceScreen,

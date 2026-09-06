@@ -9,11 +9,16 @@ import 'package:get/get.dart';
 import 'package:my_hr_system/consts.dart';
 import 'package:my_hr_system/controllers/employee_controllers/employees_controller.dart';
 import 'package:my_hr_system/models/employees/employee_model.dart';
+import 'package:my_hr_system/models/navigation/navigation_item_model.dart';
 import 'package:my_hr_system/routes/app_routes.dart';
+import 'package:my_hr_system/services/hr_access_service.dart';
 import 'package:my_hr_system/widgets/employees/employee_documents_dialog.dart';
 import 'package:my_hr_system/widgets/employees/employee_lookup_values_dialog.dart';
 import 'package:my_hr_system/widgets/employees/employee_record_dialog.dart';
 import 'package:my_hr_system/widgets/employees/employee_workspace_dialog.dart';
+import 'package:my_hr_system/widgets/drop_down_menu.dart';
+import 'package:my_hr_system/widgets/form_fields/app_date_form_field.dart';
+import 'package:my_hr_system/widgets/form_fields/app_text_form_field.dart';
 
 class _EmployeesControllerStub extends EmployeesController {
   @override
@@ -39,6 +44,29 @@ class _EmployeesControllerStub extends EmployeesController {
         ],
       ),
     ]);
+  }
+
+  var leaveCalculationCalls = 0;
+  String calculatedLeaveTypeId = '';
+  DateTime? calculatedStartDate;
+  DateTime? calculatedEndDate;
+
+  @override
+  Future<Map<String, dynamic>> leaveTypes() async => {
+    'leave-type-1': {'_id': 'leave-type-1', 'name': 'Annual leave'},
+  };
+
+  @override
+  Future<int?> calculateLeaveDays({
+    required String leaveTypeId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    leaveCalculationCalls++;
+    calculatedLeaveTypeId = leaveTypeId;
+    calculatedStartDate = startDate;
+    calculatedEndDate = endDate;
+    return 4;
   }
 
   @override
@@ -80,13 +108,56 @@ class _SizedByteList extends ListBase<int> {
       throw UnsupportedError('Read-only test list');
 }
 
+class _ReloadEmployeesControllerStub extends _EmployeesControllerStub {
+  String restoredEmployeeId = '';
+
+  @override
+  Future<bool> loadEmployee(String id) async {
+    restoredEmployeeId = id;
+    selectedEmployee.value = EmployeeDetails.fromJson({
+      '_id': id,
+      'full_name': 'Restored Employee',
+      'hire_date': '2026-01-01T00:00:00.000Z',
+    });
+    fullName.text = 'Restored Employee';
+    return true;
+  }
+}
+
+class _ReloadHrAccessService extends HrAccessService {
+  var loadCalls = 0;
+
+  @override
+  Future<HrWorkspaceAccess> load({bool forceRefresh = false}) async {
+    loadCalls++;
+    const access = HrWorkspaceAccess(
+      hasHrResponsibility: true,
+      isAdmin: false,
+      navigationItems: [
+        NavigationItemModel(
+          id: 'employees',
+          name: 'Employees',
+          isMenu: false,
+          routeName: '/employees',
+          children: [],
+        ),
+      ],
+    );
+    currentAccess.value = access;
+    return access;
+  }
+}
+
 void main() {
   tearDown(Get.reset);
 
   testWidgets('browser-style back closes the employee workspace route', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     Get.put<EmployeesController>(_EmployeesControllerStub());
+    Get.put<HrAccessService>(_ReloadHrAccessService());
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -111,7 +182,7 @@ void main() {
             page: () => const EmployeeWorkspaceRoute(),
             fullscreenDialog: true,
             opaque: false,
-            transition: Transition.noTransition,
+            transition: Transition.fadeIn,
           ),
         ],
       ),
@@ -122,6 +193,13 @@ void main() {
     expect(Get.currentRoute, AppRoutes.employeeWorkspace);
     expect(find.byType(Dialog), findsOneWidget);
     expect(find.byTooltip('Close employee workspace'), findsOneWidget);
+    final dialog = tester.widget<Dialog>(find.byType(Dialog));
+    expect(dialog.insetPadding, const EdgeInsets.all(AppSpacing.sm));
+    expect(dialog.shape, isA<RoundedRectangleBorder>());
+    expect(
+      tester.getSize(find.byKey(const ValueKey('employee-workspace-surface'))),
+      const Size(1176, 776),
+    );
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
@@ -130,10 +208,105 @@ void main() {
     expect(find.byTooltip('Close employee workspace'), findsNothing);
   });
 
+  testWidgets(
+    'employee editor autofocuses and follows the requested Tab order',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Get.put<EmployeesController>(_EmployeesControllerStub());
+      Get.put<HrAccessService>(_ReloadHrAccessService());
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: AppRoutes.employeeWorkspace,
+          getPages: [
+            GetPage(
+              name: AppRoutes.employeeWorkspace,
+              page: () => const EmployeeWorkspaceRoute(),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      AppTextFormField textField(String label) =>
+          tester.widget<AppTextFormField>(
+            find.byWidgetPredicate(
+              (widget) => widget is AppTextFormField && widget.label == label,
+            ),
+          );
+      CustomDropdown dropdown(String label) => tester.widget<CustomDropdown>(
+        find.byWidgetPredicate(
+          (widget) => widget is CustomDropdown && widget.hintText == label,
+        ),
+      );
+      AppDateFormField dateField(String label) =>
+          tester.widget<AppDateFormField>(
+            find.byWidgetPredicate(
+              (widget) => widget is AppDateFormField && widget.label == label,
+            ),
+          );
+
+      final requestedOrder = <FocusNode>[
+        textField('Full Name').focusNode!,
+        dropdown('Country of Birth').focusNode!,
+        textField('Place of Birth').focusNode!,
+        dateField('Date of Birth').focusNode!,
+        dropdown('Gender').focusNode!,
+        dropdown('Marital Status').focusNode!,
+        dropdown('Legislation *').focusNode!,
+        dropdown('Employer').focusNode!,
+        dropdown('Department').focusNode!,
+        dropdown('Job Title').focusNode!,
+        dropdown('Location').focusNode!,
+        dropdown('Reporting Manager').focusNode!,
+        dropdown('Payroll *').focusNode!,
+        dateField('Hire Date').focusNode!,
+        dateField('End Date').focusNode!,
+      ];
+
+      expect(requestedOrder.first.hasFocus, isTrue);
+      for (var index = 1; index < requestedOrder.length; index++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(
+          requestedOrder[index].hasFocus,
+          isTrue,
+          reason: 'Tab should focus ${requestedOrder[index].debugLabel}',
+        );
+      }
+
+      dropdown('Country of Birth').focusNode!.requestFocus();
+      await tester.pump();
+      final dropdownContainers = tester.widgetList<Container>(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomDropdown &&
+                widget.hintText == 'Country of Birth',
+          ),
+          matching: find.byType(Container),
+        ),
+      );
+      final focusedBorder = dropdownContainers
+          .map((container) => container.decoration)
+          .whereType<BoxDecoration>()
+          .map((decoration) => decoration.border)
+          .whereType<Border>()
+          .where(
+            (border) =>
+                border.top.color == AppColors.primary &&
+                border.top.width == 1.3,
+          );
+      expect(focusedBorder, isNotEmpty);
+    },
+  );
+
   testWidgets('repeated open requests keep one employee workspace route', (
     tester,
   ) async {
     Get.put<EmployeesController>(_EmployeesControllerStub());
+    Get.put<HrAccessService>(_ReloadHrAccessService());
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -158,7 +331,7 @@ void main() {
             page: () => const EmployeeWorkspaceRoute(),
             fullscreenDialog: true,
             opaque: false,
-            transition: Transition.noTransition,
+            transition: Transition.fadeIn,
           ),
         ],
       ),
@@ -175,6 +348,42 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(Get.currentRoute, '/employee-list');
+  });
+
+  testWidgets('a refreshed employee edit route restores access and employee', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = _ReloadEmployeesControllerStub();
+    final accessService = _ReloadHrAccessService();
+    Get.put<EmployeesController>(controller);
+    Get.put<HrAccessService>(accessService);
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        initialRoute: '${AppRoutes.employeeWorkspace}?employeeId=employee-42',
+        getPages: [
+          GetPage(
+            name: AppRoutes.employeeWorkspace,
+            page: () => const EmployeeWorkspaceRoute(),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(accessService.loadCalls, 1);
+    expect(controller.restoredEmployeeId, 'employee-42');
+    expect(
+      find.byKey(const ValueKey('employee-workspace-loading')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('employee-workspace-surface')),
+      findsOneWidget,
+    );
+    expect(find.text('Restored Employee'), findsOneWidget);
   });
 
   testWidgets('closing a nested employee editor keeps its parent dialog open', (
@@ -340,20 +549,21 @@ void main() {
     expect(find.byTooltip('Clear Start date'), findsOneWidget);
     await tester.tap(find.byTooltip('Clear Start date'));
     await tester.pump();
-    expect(find.text('2026-01-01'), findsNothing);
+    expect(find.text('01-01-2026'), findsNothing);
     final endDateEditor = find.byWidgetPredicate(
       (widget) =>
-          widget is EditableText && widget.controller.text == '2026-12-31',
+          widget is EditableText && widget.controller.text == '31-12-2026',
     );
-    tester
-        .state<EditableTextState>(endDateEditor)
-        .widget
-        .focusNode
-        .requestFocus();
+    final editable = tester.state<EditableTextState>(endDateEditor).widget;
+    editable.focusNode.requestFocus();
+    editable.controller.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: editable.controller.text.length,
+    );
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await tester.pump();
-    expect(find.text('2026-12-31'), findsNothing);
+    expect(find.text('31-12-2026'), findsNothing);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
@@ -396,7 +606,8 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    Get.put<EmployeesController>(_EmployeesControllerStub());
+    final controller = _EmployeesControllerStub();
+    Get.put<EmployeesController>(controller);
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -406,6 +617,15 @@ void main() {
               onPressed: () => showEmployeeRecordDialog(
                 context,
                 kind: EmployeeRecordKind.leave,
+                record: const EmployeeRecord({
+                  '_id': 'leave-1',
+                  'leave_type': 'leave-type-old',
+                  'leave_type_name': 'Old leave type',
+                  'start_date': '2026-09-01T00:00:00.000',
+                  'end_date': '2026-09-04T00:00:00.000',
+                  'number_of_days': 2,
+                  'status': 'New',
+                }),
               ),
               child: const Text('Open leave'),
             ),
@@ -434,6 +654,50 @@ void main() {
     expect(startDateY, closeTo(endDateY, 0.1));
     expect(startDateY, closeTo(numberOfDaysY, 0.1));
     expect(noteY, greaterThan(startDateY));
+
+    final numberField = tester.widget<AppTextFormField>(
+      find.byKey(const ValueKey('employee-record-number_of_days')),
+    );
+    expect(numberField.enabled, isFalse);
+    expect(numberField.fillColor, AppColors.softSurface);
+    final renderedNumberField = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const ValueKey('employee-record-number_of_days')),
+        matching: find.byType(TextField),
+      ),
+    );
+    expect(renderedNumberField.enabled, isFalse);
+
+    final startDateField = tester.widget<AppDateFormField>(
+      find.byKey(const ValueKey('employee-record-start_date-date')),
+    );
+    final endDateField = tester.widget<AppDateFormField>(
+      find.byKey(const ValueKey('employee-record-end_date-date')),
+    );
+    expect(startDateField.onChanged, isNotNull);
+    expect(endDateField.onChanged, isNotNull);
+
+    await tester.tap(find.text('Leave type').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Annual leave'));
+    await tester.pumpAndSettle();
+
+    expect(controller.leaveCalculationCalls, 1);
+    expect(controller.calculatedLeaveTypeId, 'leave-type-1');
+    expect(controller.calculatedStartDate, DateTime(2026, 9, 1));
+    expect(controller.calculatedEndDate, DateTime(2026, 9, 4));
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('employee-record-number_of_days')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller
+          ?.text,
+      '4',
+    );
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();

@@ -1,3 +1,5 @@
+import '../../utils/app_date_utils.dart';
+
 class UserModel {
   const UserModel({
     required this.id,
@@ -87,13 +89,11 @@ class UserModel {
 
 String formatUserDate(DateTime? date) {
   if (date == null) return '—';
-  return '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
+  return formatAppDate(date);
 }
 
 String userExpiryToIso(String value) {
-  final parsed = DateTime.tryParse(value.trim());
+  final parsed = parseAppDateValue(value);
   if (parsed == null) throw const FormatException('Invalid expiry date');
   return DateTime.utc(
     parsed.year,

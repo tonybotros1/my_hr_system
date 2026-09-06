@@ -190,6 +190,29 @@ void main() {
     expect(access.navigationItems.last.children.single.name, 'Users');
   });
 
+  test('captures only safe employee workspace browser deep links', () {
+    expect(
+      AppRoutes.employeeWorkspaceDeepLink(
+        Uri.parse(
+          'https://hr.example.com/#/mainScreen/employees/editor?employeeId=employee-42',
+        ),
+      ),
+      '${AppRoutes.employeeWorkspace}?employeeId=employee-42',
+    );
+    expect(
+      AppRoutes.employeeWorkspaceDeepLink(
+        Uri.parse('https://hr.example.com/#/mainScreen/employees/editor'),
+      ),
+      AppRoutes.employeeWorkspace,
+    );
+    expect(
+      AppRoutes.employeeWorkspaceDeepLink(
+        Uri.parse('https://hr.example.com/#/mainScreen/users'),
+      ),
+      isNull,
+    );
+  });
+
   test('filters direct HR sidebar screens using saved user access', () {
     final access = HrAccessPolicy.fromResponses(
       menuResponse: {
@@ -268,7 +291,7 @@ void main() {
     expect(user.isAdmin, isTrue);
     expect(user.roles, ['hr-role']);
     expect(user.hrScreenAccess, ['/employees', '/payroll']);
-    expect(userExpiryToIso('2027-09-04'), '2027-09-04T23:59:59.000Z');
+    expect(userExpiryToIso('04-09-2027'), '2027-09-04T23:59:59.000Z');
   });
 
   test('parses employee profile sections and derives the person type', () {
@@ -698,6 +721,47 @@ void main() {
     expect(secondOpening, contains('employer-1'));
     expect(requestCount, 1);
   });
+
+  test(
+    'employee leave days are calculated by the existing backend route',
+    () async {
+      SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/employees/get_number_of_days/employee-1');
+        expect(request.headers['Authorization'], 'Bearer test-token');
+        expect(jsonDecode(request.body), {
+          'start_date': '2026-09-01T00:00:00.000',
+          'end_date': '2026-09-04T00:00:00.000',
+          'leave_type': 'leave-type-1',
+        });
+        return http.Response(
+          '{"working_days":3}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final controller = EmployeesController(
+        api: AuthenticatedApiService(
+          httpClient: client,
+          session: AuthSessionService(),
+        ),
+      );
+      controller.selectedEmployee.value = EmployeeDetails.fromJson({
+        '_id': 'employee-1',
+        'full_name': 'Paul Admin',
+        'hire_date': '2026-01-01T00:00:00.000Z',
+      });
+
+      final days = await controller.calculateLeaveDays(
+        leaveTypeId: 'leave-type-1',
+        startDate: DateTime(2026, 9, 1),
+        endDate: DateTime(2026, 9, 4),
+      );
+
+      expect(days, 3);
+    },
+  );
 
   test(
     'employee period filter refreshes payroll elements and balances separately',

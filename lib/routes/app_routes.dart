@@ -4,6 +4,7 @@ class AppRoutes {
   static const loading = '/';
   static const login = '/loginScreen';
   static const main = '/mainScreen';
+  static const employees = '$main/employees';
   static const employeeWorkspace = '$main/employees/editor';
   static const settings = '$main/settings';
   static const workspaceScreen = '$main/:screen';
@@ -54,5 +55,24 @@ class AppRoutes {
     final normalizedMenuRoute = normalizeMenuRoute(menuRoute);
     return normalizedMenuRoute.isNotEmpty &&
         normalizedMenuRoute == normalizeMenuRoute(activeRoute);
+  }
+
+  /// Returns a safe employee-editor deep link from either Flutter's hash URL
+  /// or a path-based URL. Other startup locations are intentionally ignored.
+  static String? employeeWorkspaceDeepLink(Uri browserUri) {
+    final fragment = browserUri.fragment.trim();
+    final rawLocation = fragment.isNotEmpty
+        ? (fragment.startsWith('/') ? fragment : '/$fragment')
+        : browserUri.replace(fragment: '').toString();
+    final candidate = Uri.tryParse(rawLocation);
+    if (candidate == null || candidate.path != employeeWorkspace) return null;
+
+    final employeeId = candidate.queryParameters['employeeId']?.trim() ?? '';
+    return Uri(
+      path: employeeWorkspace,
+      queryParameters: employeeId.isEmpty
+          ? null
+          : <String, String>{'employeeId': employeeId},
+    ).toString();
   }
 }

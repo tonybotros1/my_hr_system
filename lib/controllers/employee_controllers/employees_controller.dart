@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../../models/employees/employee_model.dart';
 import '../../services/authenticated_api_service.dart';
+import '../../utils/app_date_utils.dart';
 import '../../widgets/dialogs/app_alert_dialog.dart';
 
 class EmployeesController extends GetxController {
@@ -338,6 +339,44 @@ class EmployeesController extends GetxController {
       selectedEmployee.value?.recordsFor(kind) ?? const [],
       growable: false,
     );
+  }
+
+  Future<int?> calculateLeaveDays({
+    required String leaveTypeId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    if (!isEditing || leaveTypeId.isEmpty) return null;
+    try {
+      final response = await _api.postJson(
+        '/employees/get_number_of_days/$currentEmployeeId',
+        body: {
+          'start_date': DateUtils.dateOnly(startDate).toIso8601String(),
+          'end_date': DateUtils.dateOnly(endDate).toIso8601String(),
+          'leave_type': leaveTypeId,
+        },
+      );
+      final rawDays = response['working_days'];
+      final days = switch (rawDays) {
+        num value => value.toInt(),
+        String value => int.tryParse(value),
+        _ => null,
+      };
+      if (days == null || days < 0) {
+        throw const FormatException('Invalid working-days response.');
+      }
+      return days;
+    } on SessionExpiredException {
+      Get.offAllNamed('/loginScreen');
+    } on ApiRequestException catch (error) {
+      await _showError('Could not calculate leave days', error.message);
+    } catch (_) {
+      await _showError(
+        'Could not calculate leave days',
+        'The server returned an invalid number of working days.',
+      );
+    }
+    return null;
   }
 
   Future<bool> saveRecord(
@@ -921,19 +960,16 @@ class EmployeesController extends GetxController {
     kind: AppAlertKind.error,
   );
 
-  static String formatDate(DateTime? value) {
-    if (value == null) return '';
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    return '${value.year}-$month-$day';
-  }
+  static String formatDate(DateTime? value) =>
+      value == null ? '' : formatAppDate(value);
 
-  static DateTime? parseDateInput(String value) =>
-      DateTime.tryParse(value.trim());
+  static DateTime? parseDateInput(String value) => parseAppDateValue(value);
 
   static String _isoDate(String value) {
     final date = parseDateInput(value);
-    return date?.toIso8601String() ?? '';
+    return date == null
+        ? ''
+        : DateTime.utc(date.year, date.month, date.day).toIso8601String();
   }
 
   static String _periodText(DateTime value) =>

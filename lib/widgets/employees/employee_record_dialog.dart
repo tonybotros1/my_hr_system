@@ -150,6 +150,9 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   bool _payInAdvance = false;
   bool _isEmergency = false;
   String _holderType = 'Employee';
+  bool _isCalculatingLeaveDays = false;
+  int _leaveCalculationRequest = 0;
+  Future<bool>? _leaveCalculation;
 
   EmployeesController get controller => Get.find<EmployeesController>();
   EmployeeRecord? get record => widget.record;
@@ -183,6 +186,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
 
   @override
   void dispose() {
+    _leaveCalculationRequest++;
     for (final controller in _fields.values) {
       controller.dispose();
     }
@@ -381,15 +385,36 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             onOpen: controller.leaveTypes,
             required: true,
             fullWidth: true,
+            onSelected: (_) => _scheduleLeaveDaysCalculation(),
+            onDeleted: _scheduleLeaveDaysCalculation,
           ),
-          _date('start_date', 'Start date', required: true),
-          _date('end_date', 'End date', required: true),
+          _date(
+            'start_date',
+            'Start date',
+            required: true,
+            onChanged: (_) => _scheduleLeaveDaysCalculation(),
+          ),
+          _date(
+            'end_date',
+            'End date',
+            required: true,
+            onChanged: (_) => _scheduleLeaveDaysCalculation(),
+          ),
           _text(
             'number_of_days',
             'Number of days',
-            '0',
-            required: true,
+            _isCalculatingLeaveDays
+                ? 'Calculating…'
+                : 'Calculated automatically',
+            enabled: false,
+            fillColor: AppColors.softSurface,
             keyboardType: TextInputType.number,
+            suffixIcon: _isCalculatingLeaveDays
+                ? const Padding(
+                    padding: EdgeInsets.all(AppSpacing.sm),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.calculate_outlined),
           ),
           _text('note', 'Note', 'Optional note', lines: 3, fullWidth: true),
         ], threeColumnBreakpoint: 620),
@@ -482,6 +507,9 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     int lines = 1,
     bool fullWidth = false,
     TextInputType? keyboardType,
+    bool enabled = true,
+    Color? fillColor,
+    Widget? suffixIcon,
   }) {
     return _GridField(
       fullWidth: fullWidth,
@@ -492,18 +520,29 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         validator: required ? controller.requiredText : null,
         maxLines: lines,
         keyboardType: keyboardType,
+        enabled: enabled,
+        fillColor: fillColor,
+        suffixIcon: suffixIcon,
+        key: ValueKey('employee-record-$key'),
       ),
     );
   }
 
-  _GridField _date(String key, String label, {bool required = false}) {
+  _GridField _date(
+    String key,
+    String label, {
+    bool required = false,
+    ValueChanged<DateTime?>? onChanged,
+  }) {
     return _GridField(
       child: AppDateFormField(
+        key: ValueKey('employee-record-$key-date'),
         label: label,
         controller: _fields[key]!,
         validator: required ? controller.requiredText : null,
         firstDate: DateTime(1940),
         lastDate: DateTime(2200),
+        onChanged: onChanged,
       ),
     );
   }
@@ -517,6 +556,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     bool required = false,
     bool fullWidth = false,
     ValueChanged<Map<String, dynamic>>? onSelected,
+    VoidCallback? onDeleted,
   }) {
     return _GridField(
       fullWidth: fullWidth,
@@ -528,10 +568,13 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
           showedSelectedName: displayKey,
           validator: required,
           onOpen: onOpen,
-          onDelete: () => setState(() {
-            _ids[keyName] = '';
-            _fields[keyName]!.clear();
-          }),
+          onDelete: () {
+            setState(() {
+              _ids[keyName] = '';
+              _fields[keyName]!.clear();
+            });
+            onDeleted?.call();
+          },
           onChanged: (key, value) {
             final item = Map<String, dynamic>.from(value as Map);
             setState(() {
@@ -546,6 +589,44 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         ),
       ),
     );
+  }
+
+  void _scheduleLeaveDaysCalculation() {
+    _leaveCalculation = _calculateLeaveDays();
+  }
+
+  Future<bool> _calculateLeaveDays() async {
+    final request = ++_leaveCalculationRequest;
+    final leaveTypeId = _ids['leave_type'] ?? '';
+    final startDate = parseAppDateValue(_value('start_date'));
+    final endDate = parseAppDateValue(_value('end_date'));
+
+    if (leaveTypeId.isEmpty || startDate == null || endDate == null) {
+      _fields['number_of_days']!.clear();
+      if (mounted && _isCalculatingLeaveDays) {
+        setState(() => _isCalculatingLeaveDays = false);
+      }
+      return false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isCalculatingLeaveDays = true;
+        _fields['number_of_days']!.clear();
+      });
+    }
+    final days = await controller.calculateLeaveDays(
+      leaveTypeId: leaveTypeId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+    if (!mounted || request != _leaveCalculationRequest) return false;
+
+    setState(() {
+      _isCalculatingLeaveDays = false;
+      _fields['number_of_days']!.text = days?.toString() ?? '';
+    });
+    return days != null;
   }
 
   Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) {
@@ -568,6 +649,16 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   Future<void> _save() async {
     if (_formKey.currentState?.validate() != true) return;
     if (!_requiredSelectionsComplete) return;
+    if (widget.kind == EmployeeRecordKind.leave) {
+      final pendingCalculation = _leaveCalculation;
+      if (pendingCalculation != null) {
+        final calculated = await pendingCalculation;
+        if (!mounted || !calculated) return;
+      } else if (_value('number_of_days').isEmpty &&
+          !await _calculateLeaveDays()) {
+        return;
+      }
+    }
     final saved = await controller.saveRecord(
       widget.kind,
       _bodyPayload,
@@ -707,8 +798,10 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   String _value(String key) => _fields[key]!.text.trim();
   double _double(String key) => double.tryParse(_value(key)) ?? 0;
   String? _isoOrNull(String key) {
-    final date = DateTime.tryParse(_value(key));
-    return date?.toIso8601String();
+    final date = parseAppDateValue(_value(key));
+    return date == null
+        ? null
+        : DateTime.utc(date.year, date.month, date.day).toIso8601String();
   }
 
   static const _dateKeys = {

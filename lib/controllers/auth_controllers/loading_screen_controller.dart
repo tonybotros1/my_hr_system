@@ -15,10 +15,13 @@ enum _ValidationResult { valid, invalid, unauthorized, unavailable }
 enum _RefreshResult { success, invalid, unavailable }
 
 class LoadingScreenController extends GetxController {
-  LoadingScreenController({http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+  LoadingScreenController({
+    http.Client? httpClient,
+    this.startupEmployeeWorkspace,
+  }) : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
+  final String? startupEmployeeWorkspace;
   final needRefresh = false.obs;
   final isChecking = true.obs;
 
@@ -62,6 +65,24 @@ class LoadingScreenController extends GetxController {
           final access = await _hrAccess.load(forceRefresh: true);
           if (!access.hasHrResponsibility) {
             await _openLogin(clearSession: true);
+            return;
+          }
+          final employeeWorkspace = startupEmployeeWorkspace;
+          if (employeeWorkspace != null) {
+            final query = Uri.parse(employeeWorkspace).queryParameters;
+            Get.offAllNamed(AppRoutes.employees);
+            unawaited(
+              Future<void>.microtask(() async {
+                if (query.isEmpty) {
+                  await Get.toNamed<void>(AppRoutes.employeeWorkspace);
+                } else {
+                  await Get.toNamed<void>(
+                    AppRoutes.employeeWorkspace,
+                    parameters: query,
+                  );
+                }
+              }),
+            );
             return;
           }
           Get.offAllNamed(AppRoutes.home);
