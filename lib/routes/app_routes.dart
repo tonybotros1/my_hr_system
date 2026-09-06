@@ -21,6 +21,7 @@ class AppRoutes {
     'employees': 'employees',
     'users': 'users',
     'settings': 'settings',
+    'dashboard': 'dashboard',
   };
 
   static String normalizeMenuRoute(String? routeName) {

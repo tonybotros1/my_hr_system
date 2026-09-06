@@ -6,6 +6,7 @@ import 'controllers/auth_controllers/loading_screen_controller.dart';
 import 'controllers/auth_controllers/login_screen_controller.dart';
 import 'controllers/payroll_controllers/leave_types_controller.dart';
 import 'controllers/main_controllers/main_screen_controller.dart';
+import 'controllers/dashboard_controllers/dashboard_controller.dart';
 import 'controllers/payroll_controllers/payroll_elements_controller.dart';
 import 'controllers/payroll_controllers/payroll_controller.dart';
 import 'controllers/payroll_controllers/balances_controller.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
 Bindings _mainBinding() {
   return BindingsBuilder(() {
     Get.lazyPut(MainScreenController.new);
+    Get.lazyPut(DashboardController.new, fenix: true);
     Get.lazyPut(PayrollElementsController.new, fenix: true);
     Get.lazyPut(LeaveTypesController.new, fenix: true);
     Get.lazyPut(PayrollController.new, fenix: true);

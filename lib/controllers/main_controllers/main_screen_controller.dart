@@ -17,6 +17,7 @@ import '../../screens/payroll/public_holidays_screen.dart';
 import '../../screens/payroll/legislation_screen.dart';
 import '../../screens/employees/employees_screen.dart';
 import '../../screens/settings/settings_screen.dart';
+import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/users/users_screen.dart';
 import '../../services/authenticated_api_service.dart';
 import '../../services/hr_access_service.dart';
@@ -84,7 +85,10 @@ class MainScreenController extends GetxController {
   }) async {
     if (!item.canOpen) return;
     if (compact) closeSidebar();
-    final destination = AppRoutes.screenPathForMenuRoute(item.routeName!);
+    final destination =
+        AppRoutes.normalizeMenuRoute(item.routeName) == 'dashboard'
+        ? AppRoutes.main
+        : AppRoutes.screenPathForMenuRoute(item.routeName!);
     final currentPath = Uri.tryParse(Get.currentRoute)?.path;
     if (currentPath == destination) return;
     await Get.toNamed<void>(destination);
@@ -101,8 +105,8 @@ class MainScreenController extends GetxController {
   // and displays it on the right side of the main screen.
   Widget getScreenFromRoute(String? routeName) {
     final normalizedRoute = AppRoutes.normalizeMenuRoute(routeName);
-    if (normalizedRoute.isEmpty) {
-      return const Center(child: Text('Screen not found'));
+    if (normalizedRoute.isEmpty || normalizedRoute == 'dashboard') {
+      return const DashboardScreen();
     }
     return Obx(() {
       if (!canOpenRoute(normalizedRoute)) {

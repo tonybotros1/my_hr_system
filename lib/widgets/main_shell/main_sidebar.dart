@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../consts.dart';
 import '../../controllers/main_controllers/main_screen_controller.dart';
 import '../../routes/app_routes.dart';
+import '../../models/navigation/navigation_item_model.dart';
 import 'company_brand.dart';
 import 'sidebar_navigation_item.dart';
 
@@ -52,6 +53,21 @@ class MainSidebar extends GetView<MainScreenController> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 11),
                 child: Text('WORKSPACE', style: AppTextStyles.sidebarLabel),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SidebarNavigationItem(
+                item: const NavigationItemModel(
+                  id: 'dashboard',
+                  name: 'Dashboard',
+                  isMenu: false,
+                  routeName: '/dashboard',
+                  children: [],
+                ),
+                compact: compact,
+                activeRouteName:
+                    activeRouteName == null || activeRouteName!.isEmpty
+                    ? '/dashboard'
+                    : activeRouteName,
               ),
               const SizedBox(height: AppSpacing.xs),
               Expanded(

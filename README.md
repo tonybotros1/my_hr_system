@@ -56,6 +56,7 @@ The application uses the existing DataHub AI FastAPI backend and MongoDB databas
 
 | Screen | Main capability | Browser path |
 | --- | --- | --- |
+| Dashboard | Permission-aware workforce summaries, hiring trends, recent starters, payroll activity, and a public-holiday calendar | `/#/mainScreen` |
 | Legislation | Create and maintain legislation rules and values | `/#/mainScreen/legislation` |
 | Payroll Elements | Maintain payroll elements and based-element relationships | `/#/mainScreen/payroll-elements` |
 | Employees | Employee profiles, assignments, balances, related data, leaves, contacts, and documents | `/#/mainScreen/employees` |
@@ -70,6 +71,20 @@ The application uses the existing DataHub AI FastAPI backend and MongoDB databas
 The Users screen is shown under **Admin's Screens** and is available only when the signed-in user is an administrator.
 
 Settings is available to every authenticated HR user at `/#/mainScreen/settings`. A selected color palette is applied immediately across the workspace and restored on the next visit from that browser/device.
+
+### Dashboard
+
+The opening screen is a responsive dashboard with a company welcome area, live summary cards, a six-month hiring chart, active employees by department, recent starters, recent payroll runs, a navigable holiday calendar, and shortcuts to authorized screens. Its colors follow the selected workspace theme.
+
+It uses the existing company-scoped endpoints, without backend changes:
+
+- `GET /employees/get_all_employees` for employee summaries.
+- `GET /payroll_runs/get_all_payroll_runs` for payroll-run summaries.
+- `POST /public_holidays/get_all_holidays` with an empty filter object for holidays.
+
+Requests are sent only for screens the signed-in user can access. The dashboard does not fetch individual employee profiles or invent salary totals. Active headcount requires a hire date on or before today and an end date that is empty or on/after today; applicants without hire dates and future starters are excluded. Monthly hires count actual start dates, and holidays cover the company's legislations. A failed section shows unavailable information rather than a false zero; Refresh retries all authorized sections.
+
+The implementation is separated into `screens/dashboard`, `controllers/dashboard_controllers`, `models/dashboard`, and `widgets/dashboard`. Regression tests use isolated fake responses. For a clearly labelled local sample-data preview, run `flutter run -d chrome -t test/support/dashboard_preview.dart`. Always build releases from `lib/main.dart`, never from the preview entry point.
 
 ### Employee workspace
 
@@ -424,6 +439,7 @@ Run formatting, static analysis, tests, and a production web build before releas
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
+flutter test --platform chrome test/dashboard_test.dart
 flutter build web --release \
   --dart-define=BACKEND_URL=https://api.example.com
 ```
@@ -439,6 +455,7 @@ The test suite currently covers areas including:
 - User-model screen permissions.
 - Browser/dialog stack regressions in the employee workspace.
 - Payroll and employee model/controller behavior.
+- Dashboard date boundaries, endpoint permissions, failure recovery, browser-style Back, live refresh, theme changes, and layouts from 320 to 1440 logical pixels (Chrome tests).
 
 When changing dialogs or GetX routes, test repeated open/close cycles and Browser Back. This prevents duplicate `GlobalKey<FormState>` and over-popping regressions.
 
