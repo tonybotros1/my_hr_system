@@ -55,6 +55,27 @@ void main() {
     expect(find.text('Employee editor new'), findsOneWidget);
     expect(Get.currentRoute, AppRoutes.employeeWorkspace);
   });
+
+  testWidgets('loading route restores a standard screen in a new tab', (
+    tester,
+  ) async {
+    await _pumpStartup(tester, startup: AppRoutes.employees);
+
+    expect(find.text('Employees list'), findsOneWidget);
+    expect(Get.currentRoute, AppRoutes.employees);
+  });
+
+  testWidgets('loading route rejects a screen outside the user access', (
+    tester,
+  ) async {
+    await _pumpStartup(
+      tester,
+      startup: AppRoutes.screenPathForMenuRoute('/payroll'),
+    );
+
+    expect(find.text('Dashboard'), findsOneWidget);
+    expect(Get.currentRoute, AppRoutes.main);
+  });
 }
 
 Future<void> _pumpStartup(
@@ -88,10 +109,14 @@ Future<void> _pumpStartup(
             Get.put(
               LoadingScreenController(
                 httpClient: validationClient,
-                startupEmployeeWorkspace: startup,
+                startupLocation: startup,
               ),
             );
           }),
+        ),
+        GetPage(
+          name: AppRoutes.main,
+          page: () => const Scaffold(body: Text('Dashboard')),
         ),
         GetPage(
           name: AppRoutes.employees,

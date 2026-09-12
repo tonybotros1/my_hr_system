@@ -10,10 +10,15 @@ void main() {
     final sidebar = File(
       'lib/widgets/main_shell/main_sidebar.dart',
     ).readAsStringSync();
+    final navigationItem = File(
+      'lib/widgets/main_shell/sidebar_navigation_item.dart',
+    ).readAsStringSync();
 
     expect(mainScreen, isNot(contains('AppSizes.shellTopBarHeight')));
     expect(mainScreen, contains('Positioned.fill'));
     expect(mainScreen, contains('_SelectedScreen(routeName: activeRouteName)'));
+    expect(mainScreen, contains('Title('));
+    expect(mainScreen, contains('screenTitleForMenuRoute(screenRouteName)'));
     expect(mainScreen, isNot(contains("const Text('Sign out')")));
 
     final navigationIndex = sidebar.indexOf('_NavigationBody(');
@@ -24,6 +29,9 @@ void main() {
     expect(sidebar, contains('Icons.logout_rounded'));
     expect(sidebar, contains('Icons.settings_rounded'));
     expect(sidebar, contains('controller.openSettings'));
+    expect(navigationItem, contains('Link('));
+    expect(navigationItem, contains('LinkTarget.self'));
+    expect(navigationItem, contains('Uri.parse(destination)'));
     expect(sidebar, contains('shape: const CircleBorder()'));
     expect(sidebar, isNot(contains("label: Text(loggingOut")));
   });

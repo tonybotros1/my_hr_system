@@ -21,6 +21,8 @@ class BrowserDialogHistory {
   static int _ignoredPopStates = 0;
   static int _nextId = 0;
 
+  static bool get hasOpenDialogs => _entries.isNotEmpty;
+
   static BrowserDialogHistoryHandle open(void Function() onBrowserBack) {
     _ensureListening();
     final entry = _DialogHistoryEntry(++_nextId, onBrowserBack);

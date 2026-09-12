@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/link.dart';
 
 import '../../consts.dart';
 import '../../controllers/main_controllers/main_screen_controller.dart';
@@ -63,39 +64,50 @@ class SidebarNavigationItem extends GetView<MainScreenController> {
       item.routeName,
       activeRouteName,
     );
+    final destination = item.canOpen
+        ? AppRoutes.navigationPathForMenuRoute(item.routeName!)
+        : null;
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.xxs + (level * AppSpacing.sm),
         right: AppSpacing.xxs,
         bottom: AppSpacing.xxs,
       ),
-      child: Material(
-        color: selected ? AppColors.sidebarActive : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadii.navigationItem),
-        child: InkWell(
-          onTap: item.canOpen
-              ? () => controller.selectItem(item, compact: compact)
-              : null,
+      child: Link(
+        uri: destination == null ? null : Uri.parse(destination),
+        target: LinkTarget.self,
+        builder: (context, followLink) => Material(
+          color: selected ? AppColors.sidebarActive : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadii.navigationItem),
-          hoverColor: AppColors.sidebarActive,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: 11,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: selected
-                        ? AppTextStyles.navigationItemSelected
-                        : AppTextStyles.navigationItem,
+          child: InkWell(
+            onTap: followLink == null
+                ? null
+                : () {
+                    if (selected) return;
+                    if (compact) controller.closeSidebar();
+                    followLink();
+                  },
+            borderRadius: BorderRadius.circular(AppRadii.navigationItem),
+            hoverColor: AppColors.sidebarActive,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: 11,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: selected
+                          ? AppTextStyles.navigationItemSelected
+                          : AppTextStyles.navigationItem,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

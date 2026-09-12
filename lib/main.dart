@@ -24,16 +24,13 @@ import 'services/authenticated_api_service.dart';
 import 'services/auth_session_service.dart';
 import 'services/hr_access_service.dart';
 import 'services/theme_controller.dart';
+import 'widgets/employees/employee_record_dialog.dart';
 import 'widgets/employees/employee_workspace_dialog.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.restoreSavedPalette();
-  runApp(
-    MyApp(
-      startupEmployeeWorkspace: AppRoutes.employeeWorkspaceDeepLink(Uri.base),
-    ),
-  );
+  runApp(MyApp(startupLocation: AppRoutes.startupLocation(Uri.base)));
 }
 
 Bindings _mainBinding() {
@@ -54,11 +51,11 @@ Bindings _mainBinding() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({this.startupEmployeeWorkspace, super.key});
+  const MyApp({this.startupLocation, super.key});
 
   /// Captured before Flutter replaces the browser fragment with the loading
-  /// route, allowing a refreshed employee editor to be restored after auth.
-  final String? startupEmployeeWorkspace;
+  /// route, allowing refreshed and newly opened tabs to restore their screen.
+  final String? startupLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -80,9 +77,7 @@ class MyApp extends StatelessWidget {
           page: () => const LoadingScreen(),
           binding: BindingsBuilder(() {
             Get.lazyPut(
-              () => LoadingScreenController(
-                startupEmployeeWorkspace: startupEmployeeWorkspace,
-              ),
+              () => LoadingScreenController(startupLocation: startupLocation),
             );
           }),
         ),
@@ -102,6 +97,13 @@ class MyApp extends StatelessWidget {
           name: AppRoutes.employeeWorkspace,
           page: () => const EmployeeWorkspaceRoute(),
           binding: _mainBinding(),
+          fullscreenDialog: true,
+          opaque: false,
+          transition: Transition.fadeIn,
+        ),
+        GetPage<bool>(
+          name: AppRoutes.employeeRecordEditor,
+          page: () => const EmployeeRecordDialogRoute(),
           fullscreenDialog: true,
           opaque: false,
           transition: Transition.fadeIn,

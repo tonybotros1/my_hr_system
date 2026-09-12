@@ -105,31 +105,35 @@ class _EmployeeWorkspaceRouteState extends State<EmployeeWorkspaceRoute> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_WorkspacePreparation>(
-      future: _preparation,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const _EmployeeWorkspaceLoading();
-        }
-        final preparation =
-            snapshot.data ??
-            const _WorkspacePreparation.failed(
-              'The employee workspace could not be loaded.',
-            );
-        return switch (preparation.status) {
-          _WorkspacePreparationStatus.ready => _buildWorkspace(),
-          _WorkspacePreparationStatus.denied => _EmployeeWorkspaceDenied(
-            onClose: () => _closeEmployeeWorkspace(context),
-          ),
-          _WorkspacePreparationStatus.failed => _EmployeeWorkspaceFailure(
-            message: preparation.message,
-            onRetry: _retry,
-            onClose: () => _closeEmployeeWorkspace(context),
-          ),
-          _WorkspacePreparationStatus.navigating =>
-            const _EmployeeWorkspaceLoading(),
-        };
-      },
+    return Title(
+      title: AppRoutes.screenTitleForMenuRoute('/employees'),
+      color: AppColors.primary,
+      child: FutureBuilder<_WorkspacePreparation>(
+        future: _preparation,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const _EmployeeWorkspaceLoading();
+          }
+          final preparation =
+              snapshot.data ??
+              const _WorkspacePreparation.failed(
+                'The employee workspace could not be loaded.',
+              );
+          return switch (preparation.status) {
+            _WorkspacePreparationStatus.ready => _buildWorkspace(),
+            _WorkspacePreparationStatus.denied => _EmployeeWorkspaceDenied(
+              onClose: () => _closeEmployeeWorkspace(context),
+            ),
+            _WorkspacePreparationStatus.failed => _EmployeeWorkspaceFailure(
+              message: preparation.message,
+              onRetry: _retry,
+              onClose: () => _closeEmployeeWorkspace(context),
+            ),
+            _WorkspacePreparationStatus.navigating =>
+              const _EmployeeWorkspaceLoading(),
+          };
+        },
+      ),
     );
   }
 

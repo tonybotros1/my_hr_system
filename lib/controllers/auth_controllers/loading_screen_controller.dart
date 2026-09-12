@@ -15,13 +15,11 @@ enum _ValidationResult { valid, invalid, unauthorized, unavailable }
 enum _RefreshResult { success, invalid, unavailable }
 
 class LoadingScreenController extends GetxController {
-  LoadingScreenController({
-    http.Client? httpClient,
-    this.startupEmployeeWorkspace,
-  }) : _httpClient = httpClient ?? http.Client();
+  LoadingScreenController({http.Client? httpClient, this.startupLocation})
+    : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
-  final String? startupEmployeeWorkspace;
+  final String? startupLocation;
   final needRefresh = false.obs;
   final isChecking = true.obs;
 
@@ -67,9 +65,15 @@ class LoadingScreenController extends GetxController {
             await _openLogin(clearSession: true);
             return;
           }
-          final employeeWorkspace = startupEmployeeWorkspace;
-          if (employeeWorkspace != null) {
-            final query = Uri.parse(employeeWorkspace).queryParameters;
+          final destination = _allowedStartupLocation(access);
+          if (destination != null) {
+            final uri = Uri.parse(destination);
+            if (uri.path != AppRoutes.employeeWorkspace) {
+              Get.offAllNamed(destination);
+              return;
+            }
+
+            final query = uri.queryParameters;
             Get.offAllNamed(AppRoutes.employees);
             unawaited(
               Future<void>.microtask(() async {
@@ -106,6 +110,29 @@ class LoadingScreenController extends GetxController {
     } finally {
       if (!isClosed) isChecking.value = false;
     }
+  }
+
+  String? _allowedStartupLocation(HrWorkspaceAccess access) {
+    final location = startupLocation;
+    if (location == null) return null;
+    final uri = Uri.tryParse(location);
+    if (uri == null) return null;
+
+    if (uri.path == AppRoutes.main) return AppRoutes.main;
+    if (uri.path == AppRoutes.employeeWorkspace) {
+      return access.canOpenRoute('/employees') ? location : null;
+    }
+
+    final segments = uri.pathSegments;
+    if (segments.length != 2 || segments.first != 'mainScreen') return null;
+    final menuRoute = AppRoutes.menuRouteForScreenSlug(segments.last);
+    if (menuRoute == null) return null;
+    final normalized = AppRoutes.normalizeMenuRoute(menuRoute);
+    if (normalized == 'settings') return AppRoutes.settings;
+    if (normalized == 'users') {
+      return access.isAdmin && access.canOpenRoute(menuRoute) ? location : null;
+    }
+    return access.canOpenRoute(menuRoute) ? location : null;
   }
 
   Future<_ValidationResult> _isUserValid(String userId) async {

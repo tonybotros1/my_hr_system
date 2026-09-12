@@ -57,6 +57,15 @@ class _EmployeesControllerStub extends EmployeesController {
   };
 
   @override
+  Future<Map<String, dynamic>> payrollElementOptions() async => {
+    'element-1': {
+      '_id': 'element-1',
+      'name': 'Initial Annual Leave Balance',
+      'entry_value_name': 'Number of Days',
+    },
+  };
+
+  @override
   Future<int?> calculateLeaveDays({
     required String leaveTypeId,
     required DateTime startDate,
@@ -122,6 +131,15 @@ class _ReloadEmployeesControllerStub extends _EmployeesControllerStub {
     fullName.text = 'Restored Employee';
     return true;
   }
+}
+
+class _SavingEmployeesControllerStub extends _EmployeesControllerStub {
+  @override
+  Future<bool> saveRecord(
+    EmployeeRecordKind kind,
+    Map<String, dynamic> body, {
+    String recordId = '',
+  }) async => true;
 }
 
 class _ReloadHrAccessService extends HrAccessService {
@@ -349,6 +367,89 @@ void main() {
     await tester.pumpAndSettle();
     expect(Get.currentRoute, '/employee-list');
   });
+
+  testWidgets(
+    'closing a saved record editor keeps one employee workspace route',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _SavingEmployeesControllerStub();
+      controller.selectedEmployee.value = EmployeeDetails.fromJson({
+        '_id': 'employee-42',
+        'full_name': 'Current Employee',
+        'hire_date': '2026-01-01T00:00:00.000Z',
+      });
+      controller.fullName.text = 'Current Employee';
+      Get.put<EmployeesController>(controller);
+      Get.put<HrAccessService>(_ReloadHrAccessService());
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/employee-list',
+          getPages: [
+            GetPage(
+              name: '/employee-list',
+              page: () => Builder(
+                builder: (context) => Scaffold(
+                  body: FilledButton(
+                    onPressed: () => showEmployeeWorkspaceDialog(context),
+                    child: const Text('Open employee'),
+                  ),
+                ),
+              ),
+            ),
+            GetPage(
+              name: AppRoutes.employeeWorkspace,
+              page: () => const EmployeeWorkspaceRoute(),
+              fullscreenDialog: true,
+              opaque: false,
+            ),
+            GetPage<bool>(
+              name: AppRoutes.employeeRecordEditor,
+              page: () => const EmployeeRecordDialogRoute(),
+              fullscreenDialog: true,
+              opaque: false,
+            ),
+          ],
+        ),
+      );
+
+      await tester.tap(find.text('Open employee'));
+      await tester.pumpAndSettle();
+      controller.selectedAssignmentTab.value =
+          EmployeeRecordKind.payrollElement;
+      await tester.pumpAndSettle();
+      final payrollNewButton = find.widgetWithText(FilledButton, 'New').last;
+      await tester.ensureVisible(payrollNewButton);
+      await tester.pumpAndSettle();
+      await tester.tap(payrollNewButton);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('employee-record-dialog-content')),
+        findsOneWidget,
+      );
+      expect(Get.currentRoute, contains(AppRoutes.employeeRecordEditor));
+
+      Navigator.of(
+        tester.element(
+          find.byKey(const ValueKey('employee-record-dialog-content')),
+        ),
+      ).pop(true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EmployeeWorkspaceRoute), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('employee-workspace-surface')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('employee-record-dialog-content')),
+        findsNothing,
+      );
+      expect(Get.currentRoute, contains(AppRoutes.employeeWorkspace));
+      expect(Get.currentRoute, isNot(contains(AppRoutes.employeeRecordEditor)));
+    },
+  );
 
   testWidgets('a refreshed employee edit route restores access and employee', (
     tester,
@@ -826,6 +927,53 @@ void main() {
     expect(valueY, lessThan(startDateY));
     expect(startDateY, lessThan(endDateY));
     expect(endDateY, lessThan(noteY));
+
+    await tester.tap(find.text('Payroll element').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Initial Annual Leave Balance'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Number of Days'), findsOneWidget);
+    expect(find.text('Value'), findsNothing);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
+  testWidgets('payroll element edit loads its entry value label', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.payrollElement,
+                record: const EmployeeRecord({
+                  '_id': 'record-1',
+                  'name': 'element-1',
+                  'name_value': 'Initial Annual Leave Balance',
+                  'value': 12,
+                }),
+              ),
+              child: const Text('Edit payroll element'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Edit payroll element'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Number of Days'), findsOneWidget);
+    expect(find.text('Value'), findsNothing);
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();

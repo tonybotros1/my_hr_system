@@ -85,10 +85,7 @@ class MainScreenController extends GetxController {
   }) async {
     if (!item.canOpen) return;
     if (compact) closeSidebar();
-    final destination =
-        AppRoutes.normalizeMenuRoute(item.routeName) == 'dashboard'
-        ? AppRoutes.main
-        : AppRoutes.screenPathForMenuRoute(item.routeName!);
+    final destination = AppRoutes.navigationPathForMenuRoute(item.routeName!);
     final currentPath = Uri.tryParse(Get.currentRoute)?.path;
     if (currentPath == destination) return;
     await Get.toNamed<void>(destination);

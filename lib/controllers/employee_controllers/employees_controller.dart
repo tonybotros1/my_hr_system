@@ -145,8 +145,16 @@ class EmployeesController extends GetxController {
     }
   }
 
-  Future<bool> loadEmployee(String id) async {
+  Future<bool> loadEmployee(String id) => _loadEmployee(id);
+
+  Future<bool> _loadEmployee(
+    String id, {
+    bool preserveWorkspaceState = false,
+  }) async {
     if (id.isEmpty || isLoadingDetails.value) return false;
+    final previousContactTab = selectedContactTab.value;
+    final previousAssignmentTab = selectedAssignmentTab.value;
+    final previousPeriod = selectedPeriod.value;
     isLoadingDetails.value = true;
     try {
       final response = await _api.getJson(
@@ -159,6 +167,11 @@ class EmployeesController extends GetxController {
       payrollElements.assignAll(details.payrollElements);
       assignmentBalances.assignAll(details.assignmentBalances);
       _populateEditor(details);
+      if (preserveWorkspaceState) {
+        selectedContactTab.value = previousContactTab;
+        selectedAssignmentTab.value = previousAssignmentTab;
+        selectedPeriod.value = previousPeriod;
+      }
       await setPeriod(selectedPeriod.value);
       return true;
     } on ApiRequestException catch (error) {
@@ -398,10 +411,7 @@ class EmployeesController extends GetxController {
       } else if (kind == EmployeeRecordKind.contactRelative) {
         await loadContacts();
       } else {
-        await loadEmployee(currentEmployeeId);
-        if (kind == EmployeeRecordKind.payrollElement) {
-          await setPeriod(selectedPeriod.value);
-        }
+        await _loadEmployee(currentEmployeeId, preserveWorkspaceState: true);
       }
       return true;
     } on ApiRequestException catch (error) {
@@ -425,7 +435,7 @@ class EmployeesController extends GetxController {
       } else if (kind == EmployeeRecordKind.contactRelative) {
         contacts.removeWhere((item) => item.id == record.id);
       } else {
-        await loadEmployee(currentEmployeeId);
+        await _loadEmployee(currentEmployeeId, preserveWorkspaceState: true);
       }
       return true;
     } on ApiRequestException catch (error) {

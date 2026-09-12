@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:get/get.dart';
 import '../../consts.dart';
 import '../../controllers/employee_controllers/employees_controller.dart';
 import '../../models/employees/employee_model.dart';
+import '../../routes/app_routes.dart';
 import '../../services/browser_dialog_history.dart';
 import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
@@ -18,6 +20,25 @@ Future<bool> showEmployeeRecordDialog(
   required EmployeeRecordKind kind,
   EmployeeRecord? record,
 }) async {
+  final arguments = _EmployeeRecordDialogArguments(kind: kind, record: record);
+  final hasNamedRoute = Get.routeTree.routes.any(
+    (route) => route.name == AppRoutes.employeeRecordEditor,
+  );
+  // Use a real application route when the editor opens directly above the
+  // employee workspace. If another imperative utility dialog is already open,
+  // keep this editor on that dialog's existing history entry.
+  if (hasNamedRoute && !BrowserDialogHistory.hasOpenDialogs) {
+    final employeeId = Get.find<EmployeesController>().currentEmployeeId;
+    final result = await Get.toNamed<dynamic>(
+      AppRoutes.employeeRecordEditor,
+      arguments: arguments,
+      parameters: employeeId.isEmpty
+          ? null
+          : <String, String>{'employeeId': employeeId},
+    );
+    return result == true;
+  }
+
   final size = MediaQuery.sizeOf(context);
   final layout = _layoutFor(kind);
   final availableWidth = math.max(280, size.width - (AppSpacing.md * 2));
@@ -60,6 +81,67 @@ Future<bool> showEmployeeRecordDialog(
     history.complete();
   }
   return result == true;
+}
+
+class EmployeeRecordDialogRoute extends StatelessWidget {
+  const EmployeeRecordDialogRoute({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final arguments = Get.arguments;
+    if (arguments is! _EmployeeRecordDialogArguments) {
+      return ColoredBox(
+        color: AppColors.dialogScrim,
+        child: Center(
+          child: TextButton(
+            onPressed: Get.back<void>,
+            child: const Text('Close'),
+          ),
+        ),
+      );
+    }
+
+    final size = MediaQuery.sizeOf(context);
+    final layout = _layoutFor(arguments.kind);
+    final availableWidth = math.max(280, size.width - (AppSpacing.md * 2));
+    final availableHeight = math.max(260, size.height - (AppSpacing.md * 2));
+    return Title(
+      title: AppRoutes.screenTitleForMenuRoute('/employees'),
+      color: AppColors.primary,
+      child: ColoredBox(
+        color: AppColors.dialogScrim,
+        child: Dialog(
+          insetPadding: const EdgeInsets.all(AppSpacing.md),
+          clipBehavior: Clip.antiAlias,
+          backgroundColor: AppColors.mainCanvas,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.editor),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: math.min(layout.maxHeight, availableHeight).toDouble(),
+            ),
+            child: SizedBox(
+              key: const ValueKey('employee-record-dialog-content'),
+              width: math.min(layout.width, availableWidth).toDouble(),
+              child: _EmployeeRecordEditor(
+                kind: arguments.kind,
+                record: arguments.record,
+                preferredColumns: layout.columns,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmployeeRecordDialogArguments {
+  const _EmployeeRecordDialogArguments({required this.kind, this.record});
+
+  final EmployeeRecordKind kind;
+  final EmployeeRecord? record;
 }
 
 _RecordDialogLayout _layoutFor(EmployeeRecordKind kind) => switch (kind) {
@@ -153,6 +235,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   bool _isCalculatingLeaveDays = false;
   int _leaveCalculationRequest = 0;
   Future<bool>? _leaveCalculation;
+  String _payrollValueLabel = 'Value';
 
   EmployeesController get controller => Get.find<EmployeesController>();
   EmployeeRecord? get record => widget.record;
@@ -182,6 +265,12 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     _isEmergency = record?.boolean('is_emergency') ?? false;
     final initialHolderType = _raw('health_card_holder_type');
     if (initialHolderType.isNotEmpty) _holderType = initialHolderType;
+    if (widget.kind == EmployeeRecordKind.payrollElement) {
+      _payrollValueLabel = _payrollEntryValueLabel(record?.data);
+      if (_ids['name']?.isNotEmpty == true && _payrollValueLabel == 'Value') {
+        unawaited(_loadSelectedPayrollValueLabel());
+      }
+    }
   }
 
   @override
@@ -345,8 +434,21 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         label: 'Payroll element',
         onOpen: controller.payrollElementOptions,
         required: true,
+        onSelected: (element) {
+          setState(() {
+            _payrollValueLabel = _payrollEntryValueLabel(element);
+          });
+        },
+        onDeleted: () {
+          setState(() => _payrollValueLabel = 'Value');
+        },
       ),
-      _text('value', 'Value', '0.00', keyboardType: TextInputType.number),
+      _text(
+        'value',
+        _payrollValueLabel,
+        '0.00',
+        keyboardType: TextInputType.number,
+      ),
       _date('start_date', 'Start date', required: true),
       _date('end_date', 'End date'),
       _text('notes', 'Note', 'Optional note', lines: 3, fullWidth: true),
@@ -797,6 +899,26 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   String _raw(String key) => record?.text(key) ?? '';
   String _value(String key) => _fields[key]!.text.trim();
   double _double(String key) => double.tryParse(_value(key)) ?? 0;
+
+  String _payrollEntryValueLabel(Map<String, dynamic>? element) {
+    final label = employeeString(element?['entry_value_name']).trim();
+    return label.isEmpty ? 'Value' : label;
+  }
+
+  Future<void> _loadSelectedPayrollValueLabel() async {
+    final selectedId = _ids['name'] ?? '';
+    if (selectedId.isEmpty) return;
+
+    final elements = await controller.payrollElementOptions();
+    if (!mounted || _ids['name'] != selectedId) return;
+    final selected = elements[selectedId];
+    if (selected is! Map) return;
+
+    final label = _payrollEntryValueLabel(Map<String, dynamic>.from(selected));
+    if (label == _payrollValueLabel) return;
+    setState(() => _payrollValueLabel = label);
+  }
+
   String? _isoOrNull(String key) {
     final date = parseAppDateValue(_value(key));
     return date == null

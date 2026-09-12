@@ -141,6 +141,13 @@ void main() {
     expect(AppRoutes.screenPathForMenuRoute('/users'), '/mainScreen/users');
     expect(AppRoutes.screenPathForMenuRoute('/settings'), AppRoutes.settings);
     expect(AppRoutes.menuRouteForScreenSlug('settings'), '/settings');
+    expect(
+      AppRoutes.screenTitleForMenuRoute('/defination'),
+      'Payroll Elements',
+    );
+    expect(AppRoutes.screenTitleForMenuRoute('/payroll_runs'), 'Payroll Runs');
+    expect(AppRoutes.screenTitleForMenuRoute('/employees'), 'Employees');
+    expect(AppRoutes.screenTitleForMenuRoute(null), 'Dashboard');
   });
 
   test('keeps only HR screens and exposes Users only to an admin', () {
@@ -211,6 +218,36 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  test('captures only supported workspace locations for new tabs', () {
+    expect(
+      AppRoutes.startupLocation(
+        Uri.parse('https://hr.example.com/#/mainScreen/payroll-runs'),
+      ),
+      '/mainScreen/payroll-runs',
+    );
+    expect(
+      AppRoutes.startupLocation(
+        Uri.parse('https://hr.example.com/mainScreen/employees'),
+      ),
+      AppRoutes.employees,
+    );
+    expect(
+      AppRoutes.startupLocation(
+        Uri.parse('https://hr.example.com/#/mainScreen/not-a-real-screen'),
+      ),
+      isNull,
+    );
+    expect(
+      AppRoutes.startupLocation(
+        Uri.parse(
+          'https://hr.example.com/#/mainScreen/employees/editor/record?employeeId=employee-42',
+        ),
+      ),
+      '${AppRoutes.employeeWorkspace}?employeeId=employee-42',
+    );
+    expect(AppRoutes.navigationPathForMenuRoute('/dashboard'), AppRoutes.main);
   });
 
   test('filters direct HR sidebar screens using saved user access', () {
@@ -824,6 +861,81 @@ void main() {
       expect(controller.isLoadingPeriod.value, isFalse);
     },
   );
+
+  test('saving an employee payroll element preserves its tab and period', () async {
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+    final filteredPeriods = <String>[];
+    final client = MockClient((request) async {
+      if (request.method == 'POST' &&
+          request.url.path ==
+              '/employees/add_new_employee_payroll/employee-1') {
+        return http.Response(
+          '{}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'GET' &&
+          request.url.path ==
+              '/employees/get_employee_details_dor_editing/employee-1') {
+        return http.Response(
+          '{"details":{"_id":"employee-1","full_name":"Paul Admin","hire_date":"2026-01-01T00:00:00.000Z","payrolls_details":[]}}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'POST' &&
+          request.url.path ==
+              '/employees/filter_employee_payrolls_on_period_date/employee-1') {
+        final body = Map<String, dynamic>.from(jsonDecode(request.body) as Map);
+        filteredPeriods.add(body['period'] as String);
+        return http.Response(
+          '{"payrolls_elements":[{"_id":"element-1","name_value":"Commission","value":500}]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'POST' &&
+          request.url.path ==
+              '/employees/get_assignment_balances_depending_on_period/employee-1') {
+        return http.Response(
+          '{"balances":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not found', 404);
+    });
+    final controller = EmployeesController(
+      api: AuthenticatedApiService(
+        httpClient: client,
+        session: AuthSessionService(),
+      ),
+    );
+    controller.selectedEmployee.value = EmployeeDetails.fromJson({
+      '_id': 'employee-1',
+      'full_name': 'Paul Admin',
+      'hire_date': '2026-01-01T00:00:00.000Z',
+    });
+    controller.selectedAssignmentTab.value = EmployeeRecordKind.payrollElement;
+    controller.selectedContactTab.value = EmployeeRecordKind.nationality;
+    controller.selectedPeriod.value = '2026-04';
+
+    final saved = await controller.saveRecord(
+      EmployeeRecordKind.payrollElement,
+      {'name': 'element-1', 'value': 500},
+    );
+
+    expect(saved, isTrue);
+    expect(
+      controller.selectedAssignmentTab.value,
+      EmployeeRecordKind.payrollElement,
+    );
+    expect(controller.selectedContactTab.value, EmployeeRecordKind.nationality);
+    expect(controller.selectedPeriod.value, '2026-04');
+    expect(filteredPeriods, ['2026-04']);
+    expect(controller.payrollElements.single.text('name_value'), 'Commission');
+  });
 
   testWidgets('employee period filter rebuilds the visible payroll rows', (
     tester,
