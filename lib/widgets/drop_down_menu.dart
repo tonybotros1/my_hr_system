@@ -86,11 +86,11 @@ class DropdownController extends GetxController {
     final renderBox = buttonContext.findRenderObject() as RenderBox;
     final fieldOffset = renderBox.localToGlobal(Offset.zero);
     final fieldSize = renderBox.size;
-    final screenSize = Get.size;
+    final screenSize = MediaQuery.sizeOf(context);
     const double margin = 8.0;
     final spaceBelow =
         screenSize.height - fieldOffset.dy - fieldSize.height - margin;
-    double dropdownMaxHeight = 175;
+    const dropdownMaxHeight = AppSizes.dropdownMenuMaxHeight;
     final spaceAbove = fieldOffset.dy - margin;
     final showAbove = spaceBelow < dropdownMaxHeight && spaceAbove > spaceBelow;
     final maxHeight = (showAbove ? spaceAbove : spaceBelow).clamp(
@@ -125,7 +125,11 @@ class DropdownController extends GetxController {
                 }
 
                 if (event.logicalKey == LogicalKeyboardKey.tab) {
+                  final sourceFocusNode = this.fieldFocusNode;
                   hideDropdown();
+                  if (sourceFocusNode?.canRequestFocus == true) {
+                    sourceFocusNode!.requestFocus();
+                  }
 
                   final isShiftPressed =
                       HardwareKeyboard.instance.logicalKeysPressed.contains(
@@ -505,16 +509,24 @@ class _CustomDropdownState extends State<CustomDropdown> {
   final GlobalKey buttonKey = GlobalKey();
   final LayerLink _layerLink = LayerLink();
   late final DropdownController controller;
+  late final FocusNode _internalFocusNode;
+
+  FocusNode get _effectiveFocusNode => widget.focusNode ?? _internalFocusNode;
 
   @override
   void initState() {
     super.initState();
     controller = DropdownController();
+    _internalFocusNode = FocusNode(
+      debugLabel: 'CustomDropdown(${widget.hintText})',
+    );
   }
 
   @override
   void dispose() {
+    controller.hideDropdown();
     controller.onClose();
+    _internalFocusNode.dispose();
     super.dispose();
   }
 
@@ -571,7 +583,8 @@ class _CustomDropdownState extends State<CustomDropdown> {
               CompositedTransformTarget(
                 link: _layerLink,
                 child: FocusableActionDetector(
-                  focusNode: widget.focusNode,
+                  focusNode: _effectiveFocusNode,
+                  enabled: isEnabled,
                   autofocus: false,
                   onFocusChange: (_) => controller.isValid.refresh(),
                   shortcuts: {
@@ -587,7 +600,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                       onInvoke: (intent) {
                         if (isEnabled) {
                           if (controller.isDropdownOpen.isFalse) {
-                            widget.focusNode?.requestFocus();
+                            _effectiveFocusNode.requestFocus();
                             controller.showDropdown(
                               context,
                               buttonKey,
@@ -626,7 +639,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                               },
                               layerLink: _layerLink,
                               onOpen: widget.onOpen,
-                              fieldFocusNode: widget.focusNode,
+                              fieldFocusNode: _effectiveFocusNode,
                             );
                           } else {
                             controller.hideDropdown(restoreFocus: true);
@@ -652,7 +665,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                     key: buttonKey,
                     onTap: isEnabled
                         ? () {
-                            widget.focusNode?.requestFocus();
+                            _effectiveFocusNode.requestFocus();
                             if (controller.isDropdownOpen.isFalse) {
                               controller.showDropdown(
                                 context,
@@ -691,7 +704,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
                                 },
                                 layerLink: _layerLink,
                                 onOpen: widget.onOpen,
-                                fieldFocusNode: widget.focusNode,
+                                fieldFocusNode: _effectiveFocusNode,
                               );
                             } else {
                               controller.hideDropdown(restoreFocus: true);
@@ -738,14 +751,12 @@ class _CustomDropdownState extends State<CustomDropdown> {
                                       BoxDecoration(
                                         color: AppColors.surface,
                                         border: Border.all(
-                                          color:
-                                              widget.focusNode?.hasFocus == true
+                                          color: _effectiveFocusNode.hasFocus
                                               ? AppColors.primary
                                               : controller.isValid.value
                                               ? AppColors.border
                                               : AppColors.error,
-                                          width:
-                                              widget.focusNode?.hasFocus == true
+                                          width: _effectiveFocusNode.hasFocus
                                               ? 1.3
                                               : 1,
                                         ),
@@ -823,9 +834,6 @@ class _CustomDropdownState extends State<CustomDropdown> {
                                     controller.textController.value.isNotEmpty)
                                   ExcludeFocus(
                                     child: InkWell(
-                                      focusNode: FocusNode(
-                                        canRequestFocus: false,
-                                      ),
                                       child: const Icon(
                                         Icons.clear,
                                         size: AppSizes.inputIconSize,

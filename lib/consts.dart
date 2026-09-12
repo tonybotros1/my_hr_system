@@ -158,6 +158,7 @@ class AppSizes {
   static const double payrollEditorMaxWidth = 1200;
   static const double alertDialogWidth = 420;
   static const double alertIconSize = 58;
+  static const double dropdownMenuMaxHeight = 250;
   static const double dropdownDialogWidth = 520;
   static const double dropdownDialogHeight = 580;
   static const double leaveTypesTableMinWidth = 900;
@@ -261,22 +262,21 @@ class AppGradients {
   );
 }
 
-TextStyle textFieldFontStyle = const TextStyle(
+TextStyle textFieldFontStyle = GoogleFonts.inter(
   fontSize: 14,
   color: Colors.black,
-  fontFamilyFallback: AppFonts.fallbackFamilies,
-);
+  fontWeight: FontWeight.w400,
+).copyWith(fontFamilyFallback: AppFonts.fallbackFamilies);
 SizedBox get loadingProcess => SizedBox(
   height: 20,
   width: 20,
   child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.deepTeal),
 );
-TextStyle textFieldLabelStyle = TextStyle(
+TextStyle textFieldLabelStyle = GoogleFonts.inter(
   color: Colors.grey.shade700,
   fontSize: 12,
-  fontWeight: FontWeight.bold,
-  fontFamilyFallback: AppFonts.fallbackFamilies,
-);
+  fontWeight: FontWeight.w600,
+).copyWith(fontFamilyFallback: AppFonts.fallbackFamilies);
 
 class AppShadows {
   AppShadows._();
@@ -327,7 +327,7 @@ class AppTextStyles {
 
   static TextStyle heading({double fontSize = 23}) {
     return _withFallback(
-      GoogleFonts.plusJakartaSans(
+      GoogleFonts.inter(
         color: AppColors.textPrimary,
         fontSize: fontSize,
         fontWeight: FontWeight.w700,
@@ -337,15 +337,15 @@ class AppTextStyles {
   }
 
   static TextStyle get brand => _withFallback(
-    GoogleFonts.plusJakartaSans(
+    GoogleFonts.inter(
       color: AppColors.primary,
       fontSize: 20,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w700,
     ),
   );
 
   static TextStyle get body => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.textPrimary,
       fontSize: 14,
       fontWeight: FontWeight.w400,
@@ -356,15 +356,15 @@ class AppTextStyles {
       body.copyWith(color: AppColors.textSecondary, height: 1.5);
 
   static TextStyle get fieldLabel => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.textPrimary,
       fontSize: 12,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
     ),
   );
 
   static TextStyle get input => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.textPrimary,
       fontSize: 14,
       fontWeight: FontWeight.w400,
@@ -372,7 +372,7 @@ class AppTextStyles {
   );
 
   static TextStyle get hint => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.textHint,
       fontSize: 14,
       fontWeight: FontWeight.w400,
@@ -380,7 +380,7 @@ class AppTextStyles {
   );
 
   static TextStyle get button => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: Colors.white,
       fontSize: 14,
       fontWeight: FontWeight.w700,
@@ -388,23 +388,32 @@ class AppTextStyles {
   );
 
   static TextStyle get link => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.primary,
       fontSize: 12,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
     ),
   );
 
   static TextStyle get error => _withFallback(
-    GoogleFonts.dmSans(color: AppColors.errorText, fontSize: 12, height: 1.35),
+    GoogleFonts.inter(
+      color: AppColors.errorText,
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      height: 1.35,
+    ),
   );
 
   static TextStyle get footer => _withFallback(
-    GoogleFonts.dmSans(color: AppColors.textFooter, fontSize: 11),
+    GoogleFonts.inter(
+      color: AppColors.textFooter,
+      fontSize: 11,
+      fontWeight: FontWeight.w400,
+    ),
   );
 
   static TextStyle get companyName => _withFallback(
-    GoogleFonts.plusJakartaSans(
+    GoogleFonts.inter(
       color: AppColors.surface,
       fontSize: 15,
       fontWeight: FontWeight.w700,
@@ -412,29 +421,29 @@ class AppTextStyles {
   );
 
   static TextStyle get sidebarLabel => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.sidebarLabel,
       fontSize: 10,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
       letterSpacing: 1,
     ),
   );
 
   static TextStyle get navigationItem => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.sidebarText,
       fontSize: 13,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
     ),
   );
 
   static TextStyle get navigationItemSelected => navigationItem.copyWith(
     color: AppColors.surface,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
   );
 
   static TextStyle get profileName => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: AppColors.surface,
       fontSize: 12,
       fontWeight: FontWeight.w700,
@@ -442,11 +451,15 @@ class AppTextStyles {
   );
 
   static TextStyle get profileDetail => _withFallback(
-    GoogleFonts.dmSans(color: AppColors.sidebarProfileText, fontSize: 10),
+    GoogleFonts.inter(
+      color: AppColors.sidebarProfileText,
+      fontSize: 10,
+      fontWeight: FontWeight.w400,
+    ),
   );
 
   static TextStyle get pageHeading => _withFallback(
-    GoogleFonts.plusJakartaSans(
+    GoogleFonts.inter(
       color: AppColors.textPrimary,
       fontSize: 29,
       height: 1.2,
@@ -456,52 +469,60 @@ class AppTextStyles {
   );
 
   static TextStyle get listCount => _withFallback(
-    GoogleFonts.dmSans(color: AppColors.textSecondary, fontSize: 13),
+    GoogleFonts.inter(
+      color: AppColors.textSecondary,
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+    ),
   );
 
   static TextStyle get segment => _withFallback(
-    GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w800),
+    GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
   );
 
   static TextStyle get tableHeader => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: Color(0xFF5E7775),
       fontSize: 11,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
       letterSpacing: 0.55,
     ),
   );
 
   static TextStyle get tableBody => _withFallback(
-    GoogleFonts.dmSans(color: AppColors.textPrimary, fontSize: 13),
+    GoogleFonts.inter(
+      color: AppColors.textPrimary,
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+    ),
   );
 
   static TextStyle get tableKey => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.robotoMono(
       color: Color(0xFF446A68),
       fontSize: 12,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w600,
       letterSpacing: 0.2,
     ),
   );
 
   static TextStyle get badge => _withFallback(
-    GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w800),
+    GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
   );
 
   static TextStyle get sectionTitle => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: Color(0xFF244947),
       fontSize: 15,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w700,
     ),
   );
 
   static TextStyle get checkboxLabel => _withFallback(
-    GoogleFonts.dmSans(
+    GoogleFonts.inter(
       color: Color(0xFF496663),
       fontSize: 12,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
     ),
   );
 }
@@ -593,6 +614,33 @@ class AppButtonStyles {
 class AppTheme {
   AppTheme._();
 
+  static TextTheme _interTextTheme(TextTheme theme) {
+    TextStyle? inter(TextStyle? style, FontWeight weight) => style == null
+        ? null
+        : GoogleFonts.inter(
+            textStyle: style,
+            fontWeight: weight,
+          ).copyWith(fontFamilyFallback: AppFonts.fallbackFamilies);
+
+    return theme.copyWith(
+      displayLarge: inter(theme.displayLarge, FontWeight.w700),
+      displayMedium: inter(theme.displayMedium, FontWeight.w700),
+      displaySmall: inter(theme.displaySmall, FontWeight.w700),
+      headlineLarge: inter(theme.headlineLarge, FontWeight.w700),
+      headlineMedium: inter(theme.headlineMedium, FontWeight.w700),
+      headlineSmall: inter(theme.headlineSmall, FontWeight.w700),
+      titleLarge: inter(theme.titleLarge, FontWeight.w700),
+      titleMedium: inter(theme.titleMedium, FontWeight.w600),
+      titleSmall: inter(theme.titleSmall, FontWeight.w600),
+      bodyLarge: inter(theme.bodyLarge, FontWeight.w400),
+      bodyMedium: inter(theme.bodyMedium, FontWeight.w400),
+      bodySmall: inter(theme.bodySmall, FontWeight.w400),
+      labelLarge: inter(theme.labelLarge, FontWeight.w600),
+      labelMedium: inter(theme.labelMedium, FontWeight.w600),
+      labelSmall: inter(theme.labelSmall, FontWeight.w600),
+    );
+  }
+
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
@@ -602,16 +650,19 @@ class AppTheme {
       error: AppColors.error,
     );
 
-    final textTheme = GoogleFonts.dmSansTextTheme().apply(
-      bodyColor: AppColors.textPrimary,
-      displayColor: AppColors.textPrimary,
-      fontFamilyFallback: AppFonts.fallbackFamilies,
-    );
+    final inter = GoogleFonts.inter();
+    final textTheme =
+        _interTextTheme(ThemeData.light(useMaterial3: true).textTheme).apply(
+          bodyColor: AppColors.textPrimary,
+          displayColor: AppColors.textPrimary,
+          fontFamilyFallback: AppFonts.fallbackFamilies,
+        );
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       primaryColor: AppColors.primary,
+      fontFamily: inter.fontFamily,
       fontFamilyFallback: AppFonts.fallbackFamilies,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.background,

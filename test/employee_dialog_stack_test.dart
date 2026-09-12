@@ -490,6 +490,89 @@ void main() {
     expect(find.text('New Address'), findsNothing);
   }, skip: kIsWeb);
 
+  testWidgets('employee sub-editors traverse dropdowns and fields with Tab', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: [
+                TextButton(
+                  onPressed: () => showEmployeeRecordDialog(
+                    context,
+                    kind: EmployeeRecordKind.address,
+                  ),
+                  child: const Text('Open address focus test'),
+                ),
+                TextButton(
+                  onPressed: () => showEmployeeRecordDialog(
+                    context,
+                    kind: EmployeeRecordKind.nationality,
+                  ),
+                  child: const Text('Open nationality focus test'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    FocusNode dropdownFocus(String label) {
+      final dropdown = find.byWidgetPredicate(
+        (widget) => widget is CustomDropdown && widget.hintText == label,
+      );
+      final detector = find.descendant(
+        of: dropdown,
+        matching: find.byType(FocusableActionDetector),
+      );
+      return tester.widget<FocusableActionDetector>(detector).focusNode!;
+    }
+
+    FocusNode textFocus(String label) {
+      final field = find.byWidgetPredicate(
+        (widget) => widget is AppTextFormField && widget.label == label,
+      );
+      return tester
+          .widget<EditableText>(
+            find.descendant(of: field, matching: find.byType(EditableText)),
+          )
+          .focusNode;
+    }
+
+    await tester.tap(find.text('Open address focus test'));
+    await tester.pumpAndSettle();
+    final countryFocus = dropdownFocus('Country');
+    final cityFocus = dropdownFocus('City');
+    countryFocus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(cityFocus.hasFocus, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(textFocus('Address').hasFocus, isTrue);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open nationality focus test'));
+    await tester.pumpAndSettle();
+    final nationalityFocus = dropdownFocus('Nationality');
+    nationalityFocus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(textFocus('Start date').hasFocus, isTrue);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
   testWidgets('employee record dialogs fit content and use requested grids', (
     tester,
   ) async {
