@@ -696,6 +696,27 @@ class EmployeesController extends GetxController {
     'elements',
   );
 
+  Future<Map<String, dynamic>> payrollElementDetails(String elementId) async {
+    final id = elementId.trim();
+    if (id.isEmpty) return {};
+    final cacheKey = 'payroll-element-details:$id';
+    final cached = _lookupCache[cacheKey];
+    if (cached != null) return Map<String, dynamic>.from(cached);
+
+    try {
+      final response = await _api.getJson(
+        '/payroll_elements/get_payroll_element_details/${Uri.encodeComponent(id)}',
+      );
+      final rawDetails = response['details'];
+      if (rawDetails is! Map) return {};
+      final details = Map<String, dynamic>.from(rawDetails);
+      _lookupCache[cacheKey] = details;
+      return Map<String, dynamic>.from(details);
+    } catch (_) {
+      return {};
+    }
+  }
+
   Future<Map<String, dynamic>> loanAdvanceTypes() => _loadLookup(
     'loan-types',
     '/loan_and_advances_types/get_all_loan_and_advances_types_for_lov',

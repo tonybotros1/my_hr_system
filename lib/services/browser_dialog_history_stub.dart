@@ -6,6 +6,7 @@ class BrowserDialogHistory {
   BrowserDialogHistory._();
 
   static bool get hasOpenDialogs => false;
+  static Future<void> get whenSettled => Future<void>.value();
 
   static BrowserDialogHistoryHandle open(void Function() onBrowserBack) {
     return BrowserDialogHistoryHandle._();

@@ -22,6 +22,7 @@ import 'employee_lookup_values_dialog.dart';
 import 'employee_utility_dialog.dart';
 
 bool _employeeWorkspaceRouteActive = false;
+bool _employeeWorkspaceClosePending = false;
 
 Future<void> showEmployeeWorkspaceDialog(BuildContext context) async {
   if (_employeeWorkspaceRouteActive ||
@@ -249,12 +250,20 @@ class _EmployeeWorkspaceFailure extends StatelessWidget {
   }
 }
 
-void _closeEmployeeWorkspace(BuildContext context) {
-  final navigator = Navigator.of(context);
-  if (navigator.canPop()) {
-    navigator.pop<void>();
-  } else {
-    Get.offAllNamed(AppRoutes.employees);
+Future<void> _closeEmployeeWorkspace(BuildContext context) async {
+  if (_employeeWorkspaceClosePending) return;
+  _employeeWorkspaceClosePending = true;
+  try {
+    await BrowserDialogHistory.whenSettled;
+    if (!context.mounted) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop<void>();
+    } else {
+      Get.offAllNamed(AppRoutes.employees);
+    }
+  } finally {
+    _employeeWorkspaceClosePending = false;
   }
 }
 
@@ -586,22 +595,37 @@ class _WorkspaceBodyState extends State<_WorkspaceBody> {
       policy: OrderedTraversalPolicy(),
       child: Form(
         key: widget.formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final sideBySide = constraints.maxWidth >= 1250;
-              final personal = KeyedSubtree(
-                key: _personalPanelKey,
-                child: _PersonalInformationPanel(focusNodes: _focusNodes),
-              );
-              final records = SizedBox(
-                height:
-                    _personalPanelHeight ??
-                    AppSizes.employeeOverviewPanelHeight,
-                child: const _RelatedRecordsPanel(),
-              );
-              return Column(
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final contentWidth = math.max(
+              0,
+              viewportConstraints.maxWidth - (AppSpacing.lg * 2),
+            );
+            final sideBySide = contentWidth >= 1250;
+            final overviewPanelHeight =
+                _personalPanelHeight ?? AppSizes.employeeOverviewPanelHeight;
+            final overviewHeight = sideBySide
+                ? overviewPanelHeight
+                : (overviewPanelHeight * 2) + AppSpacing.md;
+            final assignmentHeight = math.max(
+              AppSizes.employeeAssignmentPanelMinHeight,
+              viewportConstraints.maxHeight -
+                  (AppSpacing.lg * 2) -
+                  AppSpacing.md -
+                  overviewHeight,
+            );
+            final personal = KeyedSubtree(
+              key: _personalPanelKey,
+              child: _PersonalInformationPanel(focusNodes: _focusNodes),
+            );
+            final records = SizedBox(
+              height: overviewPanelHeight,
+              child: const _RelatedRecordsPanel(),
+            );
+            return SingleChildScrollView(
+              key: const ValueKey('employee-workspace-scroll'),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (sideBySide)
@@ -619,11 +643,14 @@ class _WorkspaceBodyState extends State<_WorkspaceBody> {
                     records,
                   ],
                   const SizedBox(height: AppSpacing.md),
-                  _AssignmentPanel(focusNodes: _focusNodes),
+                  SizedBox(
+                    height: assignmentHeight.toDouble(),
+                    child: _AssignmentPanel(focusNodes: _focusNodes),
+                  ),
                 ],
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1168,7 +1195,7 @@ class _AssignmentPanel extends GetView<EmployeesController> {
     return Obx(() {
       final selected = controller.selectedAssignmentTab.value;
       return Container(
-        constraints: const BoxConstraints(minHeight: 480),
+        key: const ValueKey('employee-assignment-panel'),
         decoration: AppDecorations.contentCard,
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -1197,13 +1224,14 @@ class _AssignmentPanel extends GetView<EmployeesController> {
               ],
             ),
             if (selected == EmployeeRecordKind.address)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: _AssignmentInformation(focusNodes: focusNodes),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: _AssignmentInformation(focusNodes: focusNodes),
+                ),
               )
             else
-              SizedBox(
-                height: 420,
+              Expanded(
                 child: Column(
                   children: [
                     Container(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../consts.dart';
@@ -225,6 +226,13 @@ class _EmployeeRecordEditor extends StatefulWidget {
 }
 
 class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
+  static final TextInputFormatter _decimalInputFormatter =
+      TextInputFormatter.withFunction((oldValue, newValue) {
+        return RegExp(r'^\d*\.?\d*$').hasMatch(newValue.text)
+            ? newValue
+            : oldValue;
+      });
+
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _fields = {};
   final Map<String, String> _ids = {};
@@ -236,6 +244,8 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   int _leaveCalculationRequest = 0;
   Future<bool>? _leaveCalculation;
   String _payrollValueLabel = 'Value';
+  bool _payrollValueEnabled = false;
+  int _payrollSettingsRequest = 0;
 
   EmployeesController get controller => Get.find<EmployeesController>();
   EmployeeRecord? get record => widget.record;
@@ -267,8 +277,9 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     if (initialHolderType.isNotEmpty) _holderType = initialHolderType;
     if (widget.kind == EmployeeRecordKind.payrollElement) {
       _payrollValueLabel = _payrollEntryValueLabel(record?.data);
-      if (_ids['name']?.isNotEmpty == true && _payrollValueLabel == 'Value') {
-        unawaited(_loadSelectedPayrollValueLabel());
+      _payrollValueEnabled = _payrollAllowsEntryValue(record?.data);
+      if (_ids['name']?.isNotEmpty == true) {
+        unawaited(_loadSelectedPayrollElementSettings());
       }
     }
   }
@@ -437,17 +448,28 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         onSelected: (element) {
           setState(() {
             _payrollValueLabel = _payrollEntryValueLabel(element);
+            _payrollValueEnabled = _payrollAllowsEntryValue(element);
           });
+          if (!element.containsKey('is_entry_value')) {
+            unawaited(_loadSelectedPayrollElementSettings());
+          }
         },
         onDeleted: () {
-          setState(() => _payrollValueLabel = 'Value');
+          _payrollSettingsRequest++;
+          setState(() {
+            _payrollValueLabel = 'Value';
+            _payrollValueEnabled = false;
+          });
         },
       ),
       _text(
         'value',
         _payrollValueLabel,
         '0.00',
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [_decimalInputFormatter],
+        enabled: _payrollValueEnabled,
+        fillColor: _payrollValueEnabled ? null : AppColors.softSurface,
       ),
       _date('start_date', 'Start date', required: true),
       _date('end_date', 'End date'),
@@ -465,14 +487,16 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         'Total amount',
         '0.00',
         required: true,
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [_decimalInputFormatter],
       ),
       _text(
         'monthly_installment',
         'Monthly installment',
         '0.00',
         required: true,
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [_decimalInputFormatter],
       ),
       _date('deduction_date', 'Deduction date'),
       _text('note', 'Note', 'Optional note', lines: 3, fullWidth: true),
@@ -612,6 +636,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     bool enabled = true,
     Color? fillColor,
     Widget? suffixIcon,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return _GridField(
       fullWidth: fullWidth,
@@ -625,6 +650,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         enabled: enabled,
         fillColor: fillColor,
         suffixIcon: suffixIcon,
+        inputFormatters: inputFormatters,
         key: ValueKey('employee-record-$key'),
       ),
     );
@@ -905,18 +931,37 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     return label.isEmpty ? 'Value' : label;
   }
 
-  Future<void> _loadSelectedPayrollValueLabel() async {
+  bool _payrollAllowsEntryValue(Map<String, dynamic>? element) {
+    final value = element?['is_entry_value'];
+    return value == true || employeeString(value).toLowerCase() == 'true';
+  }
+
+  Future<void> _loadSelectedPayrollElementSettings() async {
+    final request = ++_payrollSettingsRequest;
     final selectedId = _ids['name'] ?? '';
     if (selectedId.isEmpty) return;
 
     final elements = await controller.payrollElementOptions();
-    if (!mounted || _ids['name'] != selectedId) return;
-    final selected = elements[selectedId];
-    if (selected is! Map) return;
+    if (!mounted || request != _payrollSettingsRequest) return;
+    if (_ids['name'] != selectedId) return;
 
-    final label = _payrollEntryValueLabel(Map<String, dynamic>.from(selected));
-    if (label == _payrollValueLabel) return;
-    setState(() => _payrollValueLabel = label);
+    final option = elements[selectedId];
+    var settings = option is Map
+        ? Map<String, dynamic>.from(option)
+        : <String, dynamic>{};
+    if (!settings.containsKey('is_entry_value')) {
+      settings = await controller.payrollElementDetails(selectedId);
+    }
+    if (!mounted || request != _payrollSettingsRequest) return;
+    if (_ids['name'] != selectedId || settings.isEmpty) return;
+
+    final label = _payrollEntryValueLabel(settings);
+    final enabled = _payrollAllowsEntryValue(settings);
+    if (label == _payrollValueLabel && enabled == _payrollValueEnabled) return;
+    setState(() {
+      _payrollValueLabel = label;
+      _payrollValueEnabled = enabled;
+    });
   }
 
   String? _isoOrNull(String key) {

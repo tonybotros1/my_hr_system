@@ -46,7 +46,14 @@ class _EmployeesControllerStub extends EmployeesController {
     ]);
   }
 
+  @override
+  Future<void> loadLeaves() async => leaves.clear();
+
+  @override
+  Future<void> loadContacts() async => contacts.clear();
+
   var leaveCalculationCalls = 0;
+  var payrollElementDetailsCalls = 0;
   String calculatedLeaveTypeId = '';
   DateTime? calculatedStartDate;
   DateTime? calculatedEndDate;
@@ -62,8 +69,33 @@ class _EmployeesControllerStub extends EmployeesController {
       '_id': 'element-1',
       'name': 'Initial Annual Leave Balance',
       'entry_value_name': 'Number of Days',
+      'is_entry_value': true,
+    },
+    'element-2': {
+      '_id': 'element-2',
+      'name': 'Calculated Basic Salary',
+      'entry_value_name': 'Calculated Amount',
+      'is_entry_value': false,
     },
   };
+
+  @override
+  Future<Map<String, dynamic>> payrollElementDetails(String elementId) async {
+    payrollElementDetailsCalls++;
+    return elementId == 'element-1'
+        ? {
+            '_id': 'element-1',
+            'name': 'Initial Annual Leave Balance',
+            'entry_value_name': 'Number of Days',
+            'is_entry_value': true,
+          }
+        : {
+            '_id': 'element-2',
+            'name': 'Calculated Basic Salary',
+            'entry_value_name': 'Calculated Amount',
+            'is_entry_value': false,
+          };
+  }
 
   @override
   Future<int?> calculateLeaveDays({
@@ -225,6 +257,163 @@ void main() {
     expect(find.text('Open employee'), findsOneWidget);
     expect(find.byTooltip('Close employee workspace'), findsNothing);
   });
+
+  testWidgets(
+    'assignment tabs fill tall workspaces and keep a scrollable 450 minimum',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Get.put<EmployeesController>(_EmployeesControllerStub());
+      Get.put<HrAccessService>(_ReloadHrAccessService());
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/employee-list',
+          getPages: [
+            GetPage(
+              name: '/employee-list',
+              page: () => Builder(
+                builder: (context) => Scaffold(
+                  body: FilledButton(
+                    onPressed: () {
+                      Get.find<EmployeesController>().beginNewEmployee();
+                      showEmployeeWorkspaceDialog(context);
+                    },
+                    child: const Text('Open employee'),
+                  ),
+                ),
+              ),
+            ),
+            GetPage(
+              name: AppRoutes.employeeWorkspace,
+              page: () => const EmployeeWorkspaceRoute(),
+              fullscreenDialog: true,
+              opaque: false,
+            ),
+          ],
+        ),
+      );
+
+      await tester.tap(find.text('Open employee'));
+      await tester.pumpAndSettle();
+      final assignmentPanel = find.byKey(
+        const ValueKey('employee-assignment-panel'),
+      );
+      expect(
+        tester.getSize(assignmentPanel).height,
+        greaterThan(AppSizes.employeeAssignmentPanelMinHeight),
+      );
+
+      await tester.binding.setSurfaceSize(const Size(1600, 700));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(assignmentPanel).height,
+        AppSizes.employeeAssignmentPanelMinHeight,
+      );
+
+      final workspaceScroll = find.descendant(
+        of: find.byKey(const ValueKey('employee-workspace-scroll')),
+        matching: find.byType(Scrollable),
+      );
+      expect(workspaceScroll, findsWidgets);
+      expect(
+        tester
+            .state<ScrollableState>(workspaceScroll.first)
+            .position
+            .maxScrollExtent,
+        greaterThan(0),
+      );
+
+      await tester.ensureVisible(find.text('Payroll Elements'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Payroll Elements'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(assignmentPanel).height,
+        AppSizes.employeeAssignmentPanelMinHeight,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byTooltip('Close employee workspace'));
+      await tester.pumpAndSettle();
+      expect(Get.currentRoute, '/employee-list');
+    },
+  );
+
+  testWidgets(
+    'closing the image viewer leaves one employee workspace route to close',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _EmployeesControllerStub();
+      controller.selectedEmployee.value = EmployeeDetails.fromJson({
+        '_id': 'employee-42',
+        'full_name': 'Current Employee',
+        'hire_date': '2026-01-01T00:00:00.000Z',
+      });
+      controller.fullName.text = 'Current Employee';
+      controller.imageBytes.value = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      );
+      controller.imageName.value = 'employee.png';
+      Get.put<EmployeesController>(controller);
+      Get.put<HrAccessService>(_ReloadHrAccessService());
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/employee-list',
+          getPages: [
+            GetPage(
+              name: '/employee-list',
+              page: () => Builder(
+                builder: (context) => Scaffold(
+                  body: FilledButton(
+                    onPressed: () => showEmployeeWorkspaceDialog(context),
+                    child: const Text('Open employee'),
+                  ),
+                ),
+              ),
+            ),
+            GetPage(
+              name: AppRoutes.employeeWorkspace,
+              page: () => const EmployeeWorkspaceRoute(),
+              fullscreenDialog: true,
+              opaque: false,
+            ),
+          ],
+        ),
+      );
+
+      await tester.tap(find.text('Open employee'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EmployeeWorkspaceRoute), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Open'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close image'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Close image'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close image'), findsNothing);
+      expect(find.byType(EmployeeWorkspaceRoute), findsOneWidget);
+
+      // Reopening the same child dialog must not add another employee route.
+      // A browser-style Back should pop only the image route.
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Open'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close image'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close image'), findsNothing);
+      expect(find.byType(EmployeeWorkspaceRoute), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Close employee workspace'));
+      await tester.pumpAndSettle();
+      expect(Get.currentRoute, '/employee-list');
+      expect(find.byType(EmployeeWorkspaceRoute), findsNothing);
+      expect(find.text('Open employee'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'employee editor autofocuses and follows the requested Tab order',
@@ -892,7 +1081,8 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 850));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    Get.put<EmployeesController>(_EmployeesControllerStub());
+    final controller = _EmployeesControllerStub();
+    Get.put<EmployeesController>(controller);
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -935,6 +1125,41 @@ void main() {
 
     expect(find.text('Number of Days'), findsOneWidget);
     expect(find.text('Value'), findsNothing);
+    expect(
+      tester
+          .widget<AppTextFormField>(
+            find.byKey(const ValueKey('employee-record-value')),
+          )
+          .enabled,
+      isTrue,
+    );
+
+    final valueTextField = find.descendant(
+      of: find.byKey(const ValueKey('employee-record-value')),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(valueTextField, '12.5');
+    expect(tester.widget<TextField>(valueTextField).controller?.text, '12.5');
+    await tester.enterText(valueTextField, '12.5days');
+    expect(tester.widget<TextField>(valueTextField).controller?.text, '12.5');
+    await tester.enterText(valueTextField, '12.5.6');
+    expect(tester.widget<TextField>(valueTextField).controller?.text, '12.5');
+
+    await tester.tap(find.text('Initial Annual Leave Balance').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calculated Basic Salary'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Calculated Amount'), findsOneWidget);
+    expect(
+      tester
+          .widget<AppTextFormField>(
+            find.byKey(const ValueKey('employee-record-value')),
+          )
+          .enabled,
+      isFalse,
+    );
+    expect(controller.payrollElementDetailsCalls, 0);
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
@@ -945,7 +1170,8 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 850));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    Get.put<EmployeesController>(_EmployeesControllerStub());
+    final controller = _EmployeesControllerStub();
+    Get.put<EmployeesController>(controller);
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -974,6 +1200,15 @@ void main() {
 
     expect(find.text('Number of Days'), findsOneWidget);
     expect(find.text('Value'), findsNothing);
+    expect(
+      tester
+          .widget<AppTextFormField>(
+            find.byKey(const ValueKey('employee-record-value')),
+          )
+          .enabled,
+      isTrue,
+    );
+    expect(controller.payrollElementDetailsCalls, 0);
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
@@ -1022,6 +1257,19 @@ void main() {
         .toList(growable: false);
     for (var index = 1; index < fieldPositions.length; index++) {
       expect(fieldPositions[index], greaterThan(fieldPositions[index - 1]));
+    }
+
+    for (final fieldKey in ['total_amount', 'monthly_installment']) {
+      final textField = find.descendant(
+        of: find.byKey(ValueKey('employee-record-$fieldKey')),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(textField, '1500.75');
+      expect(tester.widget<TextField>(textField).controller?.text, '1500.75');
+      await tester.enterText(textField, '1500.75aed');
+      expect(tester.widget<TextField>(textField).controller?.text, '1500.75');
+      await tester.enterText(textField, '1500.75.2');
+      expect(tester.widget<TextField>(textField).controller?.text, '1500.75');
     }
 
     await tester.tap(find.text('Close'));

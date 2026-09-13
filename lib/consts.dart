@@ -199,6 +199,7 @@ class AppSizes {
   static const double employeeFiltersMinWidth = 1180;
   static const double employeeFilterActionsWidth = 220;
   static const double employeeOverviewPanelHeight = 385;
+  static const double employeeAssignmentPanelMinHeight = 450;
   static const double employeePhotoColumnWidth = 230;
   static const double employeePhotoFallbackHeight = 268;
   static const double employeePhotoCompactHeight = 300;
