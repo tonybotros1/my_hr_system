@@ -49,10 +49,14 @@ class EmployeesController extends GetxController {
   final fullName = TextEditingController();
   final countryOfBirth = TextEditingController();
   final placeOfBirth = TextEditingController();
+  final socialSecurityRegistrationNumber = TextEditingController();
   final dateOfBirth = TextEditingController();
   final gender = TextEditingController();
+  final nationalId = TextEditingController();
   final maritalStatus = TextEditingController();
   final legislation = TextEditingController();
+  final incomeTaxRegistrationNumber = TextEditingController();
+  final companyName = TextEditingController();
   final employer = TextEditingController();
   final department = TextEditingController();
   final jobTitle = TextEditingController();
@@ -102,10 +106,14 @@ class EmployeesController extends GetxController {
       fullName,
       countryOfBirth,
       placeOfBirth,
+      socialSecurityRegistrationNumber,
       dateOfBirth,
       gender,
+      nationalId,
       maritalStatus,
       legislation,
+      incomeTaxRegistrationNumber,
+      companyName,
       employer,
       department,
       jobTitle,
@@ -570,7 +578,7 @@ class EmployeesController extends GetxController {
 
   Future<Map<String, dynamic>> listValues(
     String code, {
-    bool refresh = false,
+    bool refresh = true,
   }) => _loadLookup(
     'list:$code',
     '/list_of_values/get_list_values_by_code?code=${Uri.encodeQueryComponent(code)}',
@@ -778,11 +786,16 @@ class EmployeesController extends GetxController {
     'full_name': fullName.text.trim(),
     'country_of_birth': countryOfBirthId.value,
     'place_of_birth': placeOfBirth.text.trim(),
+    'social_security_registration_number': socialSecurityRegistrationNumber.text
+        .trim(),
     'date_of_birth': _isoDate(dateOfBirth.text),
     'gender': genderId.value,
+    'national_id': nationalId.text.trim(),
     'martial_status': maritalStatusId.value,
     'person_type': computedPersonType,
     'legislation': legislationId.value,
+    'income_tax_registration_number': incomeTaxRegistrationNumber.text.trim(),
+    'company_name': companyName.text.trim(),
     'employer': employerId.value,
     'department': departmentId.value,
     'job_title': jobTitleId.value,
@@ -797,10 +810,11 @@ class EmployeesController extends GetxController {
     String cacheKey,
     String path,
     String listKey, {
-    bool refresh = false,
+    bool refresh = true,
   }) async {
-    if (!refresh && _lookupCache.containsKey(cacheKey)) {
-      return Map<String, dynamic>.from(_lookupCache[cacheKey]!);
+    final cached = _lookupCache[cacheKey];
+    if (!refresh && cached != null) {
+      return Map<String, dynamic>.from(cached);
     }
     try {
       final response = await _api.getJson(path);
@@ -815,7 +829,7 @@ class EmployeesController extends GetxController {
       _lookupCache[cacheKey] = Map<String, dynamic>.from(result);
       return Map<String, dynamic>.from(result);
     } catch (_) {
-      return {};
+      return cached == null ? {} : Map<String, dynamic>.from(cached);
     }
   }
 
@@ -839,13 +853,18 @@ class EmployeesController extends GetxController {
     countryOfBirth.text = employee.countryOfBirthName;
     countryOfBirthId.value = employee.countryOfBirthId;
     placeOfBirth.text = employee.placeOfBirth;
+    socialSecurityRegistrationNumber.text =
+        employee.socialSecurityRegistrationNumber;
     dateOfBirth.text = formatDate(employee.dateOfBirth);
     gender.text = employee.genderName;
     genderId.value = employee.genderId;
+    nationalId.text = employee.nationalId;
     maritalStatus.text = employee.maritalStatusName;
     maritalStatusId.value = employee.maritalStatusId;
     legislation.text = employee.legislationName;
     legislationId.value = employee.legislationId;
+    incomeTaxRegistrationNumber.text = employee.incomeTaxRegistrationNumber;
+    companyName.text = employee.companyName;
     employer.text = employee.employerName;
     employerId.value = employee.employerId;
     department.text = employee.departmentName;
@@ -872,10 +891,14 @@ class EmployeesController extends GetxController {
       fullName,
       countryOfBirth,
       placeOfBirth,
+      socialSecurityRegistrationNumber,
       dateOfBirth,
       gender,
+      nationalId,
       maritalStatus,
       legislation,
+      incomeTaxRegistrationNumber,
+      companyName,
       employer,
       department,
       jobTitle,
@@ -977,12 +1000,28 @@ class EmployeesController extends GetxController {
 
   List<EmployeeSummary> _summaryList(dynamic raw) {
     if (raw is! List) return const [];
-    return raw
+    final summaries = raw
         .whereType<Map>()
         .map(
           (entry) => EmployeeSummary.fromJson(Map<String, dynamic>.from(entry)),
         )
-        .toList(growable: false);
+        .toList();
+    summaries.sort((first, second) {
+      final firstName = first.fullName.trim();
+      final secondName = second.fullName.trim();
+      if (firstName.isEmpty != secondName.isEmpty) {
+        return firstName.isEmpty ? 1 : -1;
+      }
+      final nameComparison = firstName.toLowerCase().compareTo(
+        secondName.toLowerCase(),
+      );
+      if (nameComparison != 0) return nameComparison;
+      final exactComparison = firstName.compareTo(secondName);
+      return exactComparison != 0
+          ? exactComparison
+          : first.id.compareTo(second.id);
+    });
+    return List.unmodifiable(summaries);
   }
 
   Future<void> _showError(String title, String message) => showAppAlertDialog(

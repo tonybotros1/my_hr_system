@@ -347,12 +347,16 @@ void main() {
       'location_name': 'Dubai',
       'country_of_birth': 'country-1',
       'country_of_birth_name': 'Jordan',
+      'social_security_registration_number': 'SS-12345',
       'gender': 'gender-1',
       'gender_name': 'Male',
+      'national_id': '784-1985-1234567-1',
       'martial_status': 'marital-1',
       'martial_status_name': 'Married',
       'legislation': 'legislation-1',
       'legislation_name': 'UAE Legislation',
+      'income_tax_registration_number': 'TAX-98765',
+      'company_name': 'DataHub AI LLC',
       'payroll': 'payroll-1',
       'payroll_name': 'Monthly Payroll',
       'addresses_list': [
@@ -367,6 +371,10 @@ void main() {
     });
 
     expect(employee.personType, 'Employee');
+    expect(employee.nationalId, '784-1985-1234567-1');
+    expect(employee.socialSecurityRegistrationNumber, 'SS-12345');
+    expect(employee.incomeTaxRegistrationNumber, 'TAX-98765');
+    expect(employee.companyName, 'DataHub AI LLC');
     expect(employee.addresses.single.text('line'), 'Business Bay');
     expect(employee.payrollElements.single.number('value'), 2500);
     expect(employee.assignmentBalances.single.number('balance'), 1.83);
@@ -697,6 +705,69 @@ void main() {
     },
   );
 
+  testWidgets('employee save sends and restores the national ID', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+    var sentBody = '';
+    final client = MockClient((request) async {
+      if (request.method == 'POST' &&
+          request.url.path == '/employees/create_employee') {
+        sentBody = String.fromCharCodes(request.bodyBytes);
+        return http.Response(
+          '{"employee":{"_id":"employee-1","full_name":"Paul Admin","national_id":"784-1985-1234567-1","social_security_registration_number":"SS-12345","income_tax_registration_number":"TAX-98765","company_name":"DataHub AI LLC"}}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'GET' &&
+          request.url.path == '/employees/get_all_employees') {
+        return http.Response(
+          '{"employees":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('Not found', 404);
+    });
+    final controller = EmployeesController(
+      api: AuthenticatedApiService(
+        httpClient: client,
+        session: AuthSessionService(),
+      ),
+    );
+    addTearDown(controller.dispose);
+    final formKey = GlobalKey<FormState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Form(key: formKey, child: const SizedBox()),
+      ),
+    );
+    controller.fullName.text = 'Paul Admin';
+    controller.nationalId.text = ' 784-1985-1234567-1 ';
+    controller.socialSecurityRegistrationNumber.text = ' SS-12345 ';
+    controller.incomeTaxRegistrationNumber.text = ' TAX-98765 ';
+    controller.companyName.text = ' DataHub AI LLC ';
+    controller.legislationId.value = 'legislation-1';
+    controller.payrollId.value = 'payroll-1';
+
+    final saved = await controller.saveEmployee(formKey);
+
+    expect(saved, isTrue);
+    expect(sentBody, contains('name="national_id"'));
+    expect(sentBody, contains('784-1985-1234567-1'));
+    expect(sentBody, contains('name="social_security_registration_number"'));
+    expect(sentBody, contains('SS-12345'));
+    expect(sentBody, contains('name="income_tax_registration_number"'));
+    expect(sentBody, contains('TAX-98765'));
+    expect(sentBody, contains('name="company_name"'));
+    expect(sentBody, contains('DataHub AI LLC'));
+    expect(controller.nationalId.text, '784-1985-1234567-1');
+    expect(controller.socialSecurityRegistrationNumber.text, 'SS-12345');
+    expect(controller.incomeTaxRegistrationNumber.text, 'TAX-98765');
+    expect(controller.companyName.text, 'DataHub AI LLC');
+  });
+
   test('uploads multiple employee attachment files with form fields', () async {
     SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
     final client = MockClient((request) async {
@@ -733,14 +804,17 @@ void main() {
     expect((response['result'] as Map)['_id'], 'attachment-1');
   });
 
-  test('employee dropdown lookups survive mutation between openings', () async {
+  test('employee dropdown lookups refresh on every opening', () async {
     SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
     var requestCount = 0;
     final client = MockClient((request) async {
       requestCount++;
       expect(request.url.path, '/list_of_values/get_list_values_by_code');
+      final values = requestCount == 1
+          ? '[{"_id":"employer-1","name":"DataHub AI"}]'
+          : '[{"_id":"employer-1","name":"DataHub AI"},{"_id":"employer-2","name":"New Company"}]';
       return http.Response(
-        '{"values":[{"_id":"employer-1","name":"DataHub AI"}]}',
+        '{"values":$values}',
         200,
         headers: {'content-type': 'application/json'},
       );
@@ -756,7 +830,42 @@ void main() {
     final secondOpening = await controller.listValues('EMPLOYERS');
 
     expect(secondOpening, contains('employer-1'));
-    expect(requestCount, 1);
+    expect(secondOpening, contains('employer-2'));
+    expect(requestCount, 2);
+  });
+
+  test('employees are sorted alphabetically by full name', () async {
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+    final client = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, '/employees/get_all_employees');
+      return http.Response(
+        '{"employees":['
+        '{"_id":"employee-3","full_name":"zoe Smith"},'
+        '{"_id":"employee-1","full_name":"Adam Jones"},'
+        '{"_id":"employee-4","full_name":""},'
+        '{"_id":"employee-2","full_name":"bruce Allen"}'
+        ']}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final controller = EmployeesController(
+      api: AuthenticatedApiService(
+        httpClient: client,
+        session: AuthSessionService(),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.loadEmployees();
+
+    expect(controller.employees.map((employee) => employee.fullName), [
+      'Adam Jones',
+      'bruce Allen',
+      'zoe Smith',
+      '',
+    ]);
   });
 
   test(

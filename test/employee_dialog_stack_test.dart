@@ -458,10 +458,14 @@ void main() {
         textField('Full Name').focusNode!,
         dropdown('Country of Birth').focusNode!,
         textField('Place of Birth').focusNode!,
+        textField('National ID').focusNode!,
         dateField('Date of Birth').focusNode!,
         dropdown('Gender').focusNode!,
+        textField('Social Security Reg No.').focusNode!,
         dropdown('Marital Status').focusNode!,
         dropdown('Legislation *').focusNode!,
+        textField('Income Tax Reg No.').focusNode!,
+        textField('Company Name').focusNode!,
         dropdown('Employer').focusNode!,
         dropdown('Department').focusNode!,
         dropdown('Job Title').focusNode!,
@@ -482,6 +486,32 @@ void main() {
           reason: 'Tab should focus ${requestedOrder[index].debugLabel}',
         );
       }
+
+      final genderY = tester.getTopLeft(find.text('Gender').first).dy;
+      final socialSecurityY = tester
+          .getTopLeft(find.text('Social Security Reg No.').first)
+          .dy;
+      expect(socialSecurityY, closeTo(genderY, 0.1));
+      final placeOfBirthY = tester
+          .getTopLeft(find.text('Place of Birth').first)
+          .dy;
+      final nationalIdY = tester.getTopLeft(find.text('National ID').first).dy;
+      expect(nationalIdY, closeTo(placeOfBirthY, 0.1));
+      final legislationY = tester
+          .getTopLeft(find.text('Legislation *').first)
+          .dy;
+      final incomeTaxY = tester
+          .getTopLeft(find.text('Income Tax Reg No.').first)
+          .dy;
+      expect(incomeTaxY, closeTo(legislationY, 0.1));
+
+      final employmentHeight = tester
+          .getSize(find.byKey(const ValueKey('employee-employment-card')))
+          .height;
+      final contractHeight = tester
+          .getSize(find.byKey(const ValueKey('employee-contract-card')))
+          .height;
+      expect(contractHeight, closeTo(employmentHeight, 0.1));
 
       dropdown('Country of Birth').focusNode!.requestFocus();
       await tester.pump();

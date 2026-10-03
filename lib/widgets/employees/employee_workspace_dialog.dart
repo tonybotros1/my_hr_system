@@ -521,10 +521,18 @@ class _EmployeeFormFocusNodes {
   final fullName = FocusNode(debugLabel: 'employee.fullName');
   final countryOfBirth = FocusNode(debugLabel: 'employee.countryOfBirth');
   final placeOfBirth = FocusNode(debugLabel: 'employee.placeOfBirth');
+  final socialSecurityRegistrationNumber = FocusNode(
+    debugLabel: 'employee.socialSecurityRegistrationNumber',
+  );
   final dateOfBirth = FocusNode(debugLabel: 'employee.dateOfBirth');
   final gender = FocusNode(debugLabel: 'employee.gender');
+  final nationalId = FocusNode(debugLabel: 'employee.nationalId');
   final maritalStatus = FocusNode(debugLabel: 'employee.maritalStatus');
   final legislation = FocusNode(debugLabel: 'employee.legislation');
+  final incomeTaxRegistrationNumber = FocusNode(
+    debugLabel: 'employee.incomeTaxRegistrationNumber',
+  );
+  final companyName = FocusNode(debugLabel: 'employee.companyName');
   final employer = FocusNode(debugLabel: 'employee.employer');
   final department = FocusNode(debugLabel: 'employee.department');
   final jobTitle = FocusNode(debugLabel: 'employee.jobTitle');
@@ -538,10 +546,14 @@ class _EmployeeFormFocusNodes {
     fullName.dispose();
     countryOfBirth.dispose();
     placeOfBirth.dispose();
+    socialSecurityRegistrationNumber.dispose();
     dateOfBirth.dispose();
     gender.dispose();
+    nationalId.dispose();
     maritalStatus.dispose();
     legislation.dispose();
+    incomeTaxRegistrationNumber.dispose();
+    companyName.dispose();
     employer.dispose();
     department.dispose();
     jobTitle.dispose();
@@ -1030,86 +1042,150 @@ class _PersonalFields extends GetView<EmployeesController> {
 
   @override
   Widget build(BuildContext context) {
-    return _ResponsiveFieldGrid(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _FieldSpan(
-          span: 2,
-          focusOrder: 1,
-          child: AppTextFormField(
-            label: 'Full Name',
-            hintText: 'Employee full name',
-            controller: controller.fullName,
-            validator: controller.requiredText,
-            focusNode: focusNodes.fullName,
-            autofocus: true,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => focusNodes.countryOfBirth.requestFocus(),
-            textCapitalization: TextCapitalization.words,
-          ),
+        _ResponsiveFieldGrid(
+          maxColumns: 1,
+          children: [
+            _FieldSpan(
+              focusOrder: 1,
+              child: AppTextFormField(
+                label: 'Full Name',
+                hintText: 'Employee full name',
+                controller: controller.fullName,
+                validator: controller.requiredText,
+                focusNode: focusNodes.fullName,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) =>
+                    focusNodes.countryOfBirth.requestFocus(),
+                textCapitalization: TextCapitalization.words,
+              ),
+            ),
+          ],
         ),
-        _FieldSpan(
-          focusOrder: 2,
-          child: _LookupField(
-            label: 'Country of Birth',
-            textController: controller.countryOfBirth,
-            selectedId: controller.countryOfBirthId,
-            onOpen: controller.countries,
-            focusNode: focusNodes.countryOfBirth,
-            nextFocusNode: focusNodes.placeOfBirth,
-          ),
+        const SizedBox(height: AppSpacing.md),
+        _ResponsiveFieldGrid(
+          maxColumns: 3,
+          threeColumnBreakpoint: 480,
+          children: [
+            _FieldSpan(
+              focusOrder: 2,
+              child: _LookupField(
+                label: 'Country of Birth',
+                textController: controller.countryOfBirth,
+                selectedId: controller.countryOfBirthId,
+                onOpen: controller.countries,
+                focusNode: focusNodes.countryOfBirth,
+                nextFocusNode: focusNodes.placeOfBirth,
+              ),
+            ),
+            _FieldSpan(
+              focusOrder: 3,
+              child: AppTextFormField(
+                label: 'Place of Birth',
+                hintText: 'Place of birth',
+                controller: controller.placeOfBirth,
+                focusNode: focusNodes.placeOfBirth,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => focusNodes.nationalId.requestFocus(),
+              ),
+            ),
+            _FieldSpan(
+              focusOrder: 4,
+              child: AppTextFormField(
+                label: 'National ID',
+                hintText: 'Enter national ID',
+                controller: controller.nationalId,
+                focusNode: focusNodes.nationalId,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => focusNodes.dateOfBirth.requestFocus(),
+                textCapitalization: TextCapitalization.characters,
+              ),
+            ),
+          ],
         ),
-        _FieldSpan(
-          focusOrder: 3,
-          child: AppTextFormField(
-            label: 'Place of Birth',
-            hintText: 'Place of birth',
-            controller: controller.placeOfBirth,
-            focusNode: focusNodes.placeOfBirth,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => focusNodes.dateOfBirth.requestFocus(),
-          ),
+        const SizedBox(height: AppSpacing.md),
+        _ResponsiveFieldGrid(
+          maxColumns: 3,
+          threeColumnBreakpoint: 480,
+          children: [
+            _FieldSpan(
+              focusOrder: 5,
+              child: _DateField(
+                label: 'Date of Birth',
+                controller: controller.dateOfBirth,
+                focusNode: focusNodes.dateOfBirth,
+              ),
+            ),
+            _FieldSpan(
+              focusOrder: 6,
+              child: _LookupField(
+                label: 'Gender',
+                textController: controller.gender,
+                selectedId: controller.genderId,
+                onOpen: () => controller.listValues('GENDER'),
+                focusNode: focusNodes.gender,
+                nextFocusNode: focusNodes.socialSecurityRegistrationNumber,
+              ),
+            ),
+            _FieldSpan(
+              focusOrder: 7,
+              child: AppTextFormField(
+                label: 'Social Security Reg No.',
+                hintText: 'Enter registration number',
+                controller: controller.socialSecurityRegistrationNumber,
+                focusNode: focusNodes.socialSecurityRegistrationNumber,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) =>
+                    focusNodes.maritalStatus.requestFocus(),
+                textCapitalization: TextCapitalization.characters,
+              ),
+            ),
+          ],
         ),
-        _FieldSpan(
-          focusOrder: 4,
-          child: _DateField(
-            label: 'Date of Birth',
-            controller: controller.dateOfBirth,
-            focusNode: focusNodes.dateOfBirth,
-          ),
-        ),
-        _FieldSpan(
-          focusOrder: 5,
-          child: _LookupField(
-            label: 'Gender',
-            textController: controller.gender,
-            selectedId: controller.genderId,
-            onOpen: () => controller.listValues('GENDER'),
-            focusNode: focusNodes.gender,
-            nextFocusNode: focusNodes.maritalStatus,
-          ),
-        ),
-        _FieldSpan(
-          focusOrder: 6,
-          child: _LookupField(
-            label: 'Marital Status',
-            textController: controller.maritalStatus,
-            selectedId: controller.maritalStatusId,
-            onOpen: () => controller.listValues('MARITAL_STATUS'),
-            focusNode: focusNodes.maritalStatus,
-            nextFocusNode: focusNodes.legislation,
-          ),
-        ),
-        _FieldSpan(
-          focusOrder: 7,
-          child: _LookupField(
-            label: 'Legislation *',
-            textController: controller.legislation,
-            selectedId: controller.legislationId,
-            onOpen: controller.legislations,
-            focusNode: focusNodes.legislation,
-            nextFocusNode: focusNodes.employer,
-            required: true,
-          ),
+        const SizedBox(height: AppSpacing.md),
+        _ResponsiveFieldGrid(
+          maxColumns: 3,
+          threeColumnBreakpoint: 480,
+          children: [
+            _FieldSpan(
+              focusOrder: 8,
+              child: _LookupField(
+                label: 'Marital Status',
+                textController: controller.maritalStatus,
+                selectedId: controller.maritalStatusId,
+                onOpen: () => controller.listValues('MARITAL_STATUS'),
+                focusNode: focusNodes.maritalStatus,
+                nextFocusNode: focusNodes.legislation,
+              ),
+            ),
+            _FieldSpan(
+              focusOrder: 9,
+              child: _LookupField(
+                label: 'Legislation *',
+                textController: controller.legislation,
+                selectedId: controller.legislationId,
+                onOpen: controller.legislations,
+                focusNode: focusNodes.legislation,
+                nextFocusNode: focusNodes.incomeTaxRegistrationNumber,
+                required: true,
+              ),
+            ),
+            _FieldSpan(
+              focusOrder: 10,
+              child: AppTextFormField(
+                label: 'Income Tax Reg No.',
+                hintText: 'Enter registration number',
+                controller: controller.incomeTaxRegistrationNumber,
+                focusNode: focusNodes.incomeTaxRegistrationNumber,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => focusNodes.companyName.requestFocus(),
+                textCapitalization: TextCapitalization.characters,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1391,110 +1467,134 @@ class _EmploymentCard extends GetView<EmployeesController> {
   @override
   Widget build(BuildContext context) {
     return _SubCard(
+      key: const ValueKey('employee-employment-card'),
       title: 'Employment Details',
-      child: _ResponsiveFieldGrid(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _FieldSpan(
-            focusOrder: 8,
-            child: _EmploymentLookupField(
-              label: 'Employer',
-              focusNode: focusNodes.employer,
-              nextFocusNode: focusNodes.department,
-              textController: controller.employer,
-              selectedId: controller.employerId,
-              onOpen: () => controller.listValues('EMPLOYERS'),
-              onManage: () => showEmployeeLookupValuesDialog(
-                context,
-                controller: controller,
-                code: 'EMPLOYERS',
-                title: 'Employers',
-                singularTitle: 'Employer',
+          _ResponsiveFieldGrid(
+            maxColumns: 1,
+            children: [
+              _FieldSpan(
+                focusOrder: 11,
+                child: AppTextFormField(
+                  label: 'Company Name',
+                  hintText: 'Enter company name',
+                  controller: controller.companyName,
+                  focusNode: focusNodes.companyName,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => focusNodes.employer.requestFocus(),
+                  textCapitalization: TextCapitalization.words,
+                ),
               ),
-            ),
+            ],
           ),
-          _FieldSpan(
-            focusOrder: 9,
-            child: _EmploymentLookupField(
-              label: 'Department',
-              focusNode: focusNodes.department,
-              nextFocusNode: focusNodes.jobTitle,
-              textController: controller.department,
-              selectedId: controller.departmentId,
-              onOpen: () => controller.listValues('DEPARTMENTS'),
-              onManage: () => showEmployeeLookupValuesDialog(
-                context,
-                controller: controller,
-                code: 'DEPARTMENTS',
-                title: 'Departments',
-                singularTitle: 'Department',
+          const SizedBox(height: AppSpacing.md),
+          _ResponsiveFieldGrid(
+            children: [
+              _FieldSpan(
+                focusOrder: 12,
+                child: _EmploymentLookupField(
+                  label: 'Employer',
+                  focusNode: focusNodes.employer,
+                  nextFocusNode: focusNodes.department,
+                  textController: controller.employer,
+                  selectedId: controller.employerId,
+                  onOpen: () => controller.listValues('EMPLOYERS'),
+                  onManage: () => showEmployeeLookupValuesDialog(
+                    context,
+                    controller: controller,
+                    code: 'EMPLOYERS',
+                    title: 'Employers',
+                    singularTitle: 'Employer',
+                  ),
+                ),
               ),
-            ),
-          ),
-          _FieldSpan(
-            focusOrder: 10,
-            child: _EmploymentLookupField(
-              label: 'Job Title',
-              focusNode: focusNodes.jobTitle,
-              nextFocusNode: focusNodes.location,
-              textController: controller.jobTitle,
-              selectedId: controller.jobTitleId,
-              onOpen: () => controller.listValues('JOBS'),
-              onManage: () => showEmployeeLookupValuesDialog(
-                context,
-                controller: controller,
-                code: 'JOBS',
-                title: 'Jobs',
-                singularTitle: 'Job',
+              _FieldSpan(
+                focusOrder: 13,
+                child: _EmploymentLookupField(
+                  label: 'Department',
+                  focusNode: focusNodes.department,
+                  nextFocusNode: focusNodes.jobTitle,
+                  textController: controller.department,
+                  selectedId: controller.departmentId,
+                  onOpen: () => controller.listValues('DEPARTMENTS'),
+                  onManage: () => showEmployeeLookupValuesDialog(
+                    context,
+                    controller: controller,
+                    code: 'DEPARTMENTS',
+                    title: 'Departments',
+                    singularTitle: 'Department',
+                  ),
+                ),
               ),
-            ),
-          ),
-          _FieldSpan(
-            focusOrder: 11,
-            child: _EmploymentLookupField(
-              label: 'Location',
-              focusNode: focusNodes.location,
-              nextFocusNode: focusNodes.reportingManager,
-              textController: controller.location,
-              selectedId: controller.locationId,
-              onOpen: () => controller.listValues('LOCATIONS'),
-              onManage: () => showEmployeeLookupValuesDialog(
-                context,
-                controller: controller,
-                code: 'LOCATIONS',
-                title: 'Locations',
-                singularTitle: 'Location',
+              _FieldSpan(
+                focusOrder: 14,
+                child: _EmploymentLookupField(
+                  label: 'Job Title',
+                  focusNode: focusNodes.jobTitle,
+                  nextFocusNode: focusNodes.location,
+                  textController: controller.jobTitle,
+                  selectedId: controller.jobTitleId,
+                  onOpen: () => controller.listValues('JOBS'),
+                  onManage: () => showEmployeeLookupValuesDialog(
+                    context,
+                    controller: controller,
+                    code: 'JOBS',
+                    title: 'Jobs',
+                    singularTitle: 'Job',
+                  ),
+                ),
               ),
-            ),
-          ),
-          _FieldSpan(
-            focusOrder: 12,
-            child: _EmploymentLookupField(
-              label: 'Reporting Manager',
-              focusNode: focusNodes.reportingManager,
-              nextFocusNode: focusNodes.payroll,
-              textController: controller.reportingManager,
-              selectedId: controller.reportingManagerId,
-              onOpen: () => controller.listValues('REPORTING_MANAGER'),
-              onManage: () => showEmployeeLookupValuesDialog(
-                context,
-                controller: controller,
-                code: 'REPORTING_MANAGER',
-                title: 'Reporting Managers',
-                singularTitle: 'Reporting Manager',
+              _FieldSpan(
+                focusOrder: 15,
+                child: _EmploymentLookupField(
+                  label: 'Location',
+                  focusNode: focusNodes.location,
+                  nextFocusNode: focusNodes.reportingManager,
+                  textController: controller.location,
+                  selectedId: controller.locationId,
+                  onOpen: () => controller.listValues('LOCATIONS'),
+                  onManage: () => showEmployeeLookupValuesDialog(
+                    context,
+                    controller: controller,
+                    code: 'LOCATIONS',
+                    title: 'Locations',
+                    singularTitle: 'Location',
+                  ),
+                ),
               ),
-            ),
-          ),
-          _FieldSpan(
-            focusOrder: 13,
-            child: _EmploymentLookupField(
-              label: 'Payroll *',
-              focusNode: focusNodes.payroll,
-              nextFocusNode: focusNodes.hireDate,
-              textController: controller.payroll,
-              selectedId: controller.payrollId,
-              onOpen: controller.payrolls,
-              required: true,
-            ),
+              _FieldSpan(
+                focusOrder: 16,
+                child: _EmploymentLookupField(
+                  label: 'Reporting Manager',
+                  focusNode: focusNodes.reportingManager,
+                  nextFocusNode: focusNodes.payroll,
+                  textController: controller.reportingManager,
+                  selectedId: controller.reportingManagerId,
+                  onOpen: () => controller.listValues('REPORTING_MANAGER'),
+                  onManage: () => showEmployeeLookupValuesDialog(
+                    context,
+                    controller: controller,
+                    code: 'REPORTING_MANAGER',
+                    title: 'Reporting Managers',
+                    singularTitle: 'Reporting Manager',
+                  ),
+                ),
+              ),
+              _FieldSpan(
+                focusOrder: 17,
+                child: _EmploymentLookupField(
+                  label: 'Payroll *',
+                  focusNode: focusNodes.payroll,
+                  nextFocusNode: focusNodes.hireDate,
+                  textController: controller.payroll,
+                  selectedId: controller.payrollId,
+                  onOpen: controller.payrolls,
+                  required: true,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1510,6 +1610,7 @@ class _ContractCard extends GetView<EmployeesController> {
   @override
   Widget build(BuildContext context) {
     return _SubCard(
+      key: const ValueKey('employee-contract-card'),
       title: 'Contract Dates',
       child: Column(
         children: [
@@ -1521,7 +1622,7 @@ class _ContractCard extends GetView<EmployeesController> {
                   label: 'Hire Date',
                   controller: controller.hireDate,
                   focusNode: focusNodes.hireDate,
-                  focusOrder: 14,
+                  focusOrder: 18,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -1530,7 +1631,7 @@ class _ContractCard extends GetView<EmployeesController> {
                   label: 'End Date',
                   controller: controller.endDate,
                   focusNode: focusNodes.endDate,
-                  focusOrder: 15,
+                  focusOrder: 19,
                 ),
               ),
             ],
@@ -1707,7 +1808,7 @@ class _DurationValue extends StatelessWidget {
 }
 
 class _SubCard extends StatelessWidget {
-  const _SubCard({required this.title, required this.child});
+  const _SubCard({super.key, required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -1964,19 +2065,26 @@ class _DateField extends StatelessWidget {
 }
 
 class _ResponsiveFieldGrid extends StatelessWidget {
-  const _ResponsiveFieldGrid({required this.children});
+  const _ResponsiveFieldGrid({
+    required this.children,
+    this.maxColumns = 3,
+    this.threeColumnBreakpoint = 820,
+  });
 
   final List<_FieldSpan> children;
+  final int maxColumns;
+  final double threeColumnBreakpoint;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 820
+        final responsiveColumns = constraints.maxWidth >= threeColumnBreakpoint
             ? 3
             : constraints.maxWidth >= 500
             ? 2
             : 1;
+        final columns = math.min(maxColumns, responsiveColumns);
         final unitWidth =
             (constraints.maxWidth - AppSpacing.md * (columns - 1)) / columns;
         return Wrap(
@@ -1984,9 +2092,8 @@ class _ResponsiveFieldGrid extends StatelessWidget {
           runSpacing: AppSpacing.md,
           children: children
               .map((field) {
-                final span = math.min(field.span, columns);
                 return SizedBox(
-                  width: unitWidth * span + AppSpacing.md * (span - 1),
+                  width: unitWidth,
                   child: field.focusOrder == null
                       ? field.child
                       : FocusTraversalOrder(
@@ -2003,10 +2110,9 @@ class _ResponsiveFieldGrid extends StatelessWidget {
 }
 
 class _FieldSpan {
-  const _FieldSpan({required this.child, this.span = 1, this.focusOrder});
+  const _FieldSpan({required this.child, this.focusOrder});
 
   final Widget child;
-  final int span;
   final double? focusOrder;
 }
 

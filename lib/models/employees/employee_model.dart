@@ -97,12 +97,16 @@ class EmployeeDetails extends EmployeeSummary {
     required this.countryOfBirthId,
     required this.countryOfBirthName,
     required this.placeOfBirth,
+    required this.socialSecurityRegistrationNumber,
     required this.genderId,
     required this.genderName,
+    required this.nationalId,
     required this.maritalStatusId,
     required this.maritalStatusName,
     required this.legislationId,
     required this.legislationName,
+    required this.incomeTaxRegistrationNumber,
+    required this.companyName,
     required this.reportingManagerId,
     required this.reportingManagerName,
     required this.payrollId,
@@ -123,13 +127,17 @@ class EmployeeDetails extends EmployeeSummary {
   final String countryOfBirthId;
   final String countryOfBirthName;
   final String placeOfBirth;
+  final String socialSecurityRegistrationNumber;
   final DateTime? dateOfBirth;
   final String genderId;
   final String genderName;
+  final String nationalId;
   final String maritalStatusId;
   final String maritalStatusName;
   final String legislationId;
   final String legislationName;
+  final String incomeTaxRegistrationNumber;
+  final String companyName;
   final String reportingManagerId;
   final String reportingManagerName;
   final String payrollId;
@@ -164,13 +172,21 @@ class EmployeeDetails extends EmployeeSummary {
       countryOfBirthId: employeeString(json['country_of_birth']),
       countryOfBirthName: employeeString(json['country_of_birth_name']),
       placeOfBirth: employeeString(json['place_of_birth']),
+      socialSecurityRegistrationNumber: employeeString(
+        json['social_security_registration_number'],
+      ),
       dateOfBirth: employeeDate(json['date_of_birth']),
       genderId: employeeString(json['gender']),
       genderName: employeeString(json['gender_name']),
+      nationalId: employeeString(json['national_id']),
       maritalStatusId: employeeString(json['martial_status']),
       maritalStatusName: employeeString(json['martial_status_name']),
       legislationId: employeeString(json['legislation']),
       legislationName: employeeString(json['legislation_name']),
+      incomeTaxRegistrationNumber: employeeString(
+        json['income_tax_registration_number'],
+      ),
+      companyName: employeeString(json['company_name']),
       reportingManagerId: employeeString(json['reporting_manager']),
       reportingManagerName: employeeString(json['reporting_manager_name']),
       payrollId: employeeString(json['payroll']),
