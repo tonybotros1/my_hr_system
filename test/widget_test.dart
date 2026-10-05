@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_hr_system/consts.dart';
 import 'package:my_hr_system/models/company/company_identity_model.dart';
 import 'package:my_hr_system/controllers/employee_controllers/employees_controller.dart';
+import 'package:my_hr_system/controllers/payroll_controllers/payroll_elements_controller.dart';
 import 'package:my_hr_system/models/employees/employee_model.dart';
 import 'package:my_hr_system/models/auth/login_response_model.dart';
 import 'package:my_hr_system/models/navigation/navigation_item_model.dart';
@@ -17,6 +18,7 @@ import 'package:my_hr_system/models/users/user_model.dart';
 import 'package:my_hr_system/models/payroll/leave_type_model.dart';
 import 'package:my_hr_system/models/payroll/payroll_element_model.dart';
 import 'package:my_hr_system/models/payroll/payroll_model.dart';
+import 'package:my_hr_system/models/payroll/based_element_model.dart';
 import 'package:my_hr_system/models/payroll/balance_model.dart';
 import 'package:my_hr_system/models/payroll/loan_advance_type_model.dart';
 import 'package:my_hr_system/models/payroll/payroll_run_model.dart';
@@ -495,6 +497,49 @@ void main() {
     expect(element.allowOverride, isTrue);
     expect(element.basedElements.single.elementName, 'Allowance');
     expect(element.toRequestJson()['function'], 'PY_INPUT_VALUE_FF');
+  });
+
+  test('payroll based-element choices exclude elements already added', () {
+    final controller = PayrollElementsController();
+    addTearDown(controller.dispose);
+    controller.basedElementOptions.assignAll(const [
+      PayrollElementOption(id: 'salary', name: 'Basic Salary'),
+      PayrollElementOption(id: 'allowance', name: 'Allowance'),
+    ]);
+    controller.basedElements.assignAll(const [
+      BasedElementModel(
+        id: 'based-1',
+        elementId: 'salary',
+        elementName: 'Basic Salary',
+        type: 'Add',
+      ),
+    ]);
+
+    controller.editingBasedElementId.value = '';
+    expect(
+      controller.basedElementDropdownItems.keys,
+      orderedEquals(['allowance']),
+    );
+    controller.selectedBasedElementId.value = 'salary';
+    expect(controller.hasDuplicateBasedElementSelection, isTrue);
+
+    controller.editingBasedElementId.value = 'based-1';
+    expect(
+      controller.basedElementDropdownItems.keys,
+      orderedEquals(['salary', 'allowance']),
+    );
+    expect(controller.hasDuplicateBasedElementSelection, isFalse);
+
+    controller.basedElements.add(
+      const BasedElementModel(
+        id: 'based-2',
+        elementId: 'allowance',
+        elementName: 'Allowance',
+        type: 'Add',
+      ),
+    );
+    controller.selectedBasedElementId.value = 'allowance';
+    expect(controller.hasDuplicateBasedElementSelection, isTrue);
   });
 
   test('parses leave types and their based payroll elements', () {

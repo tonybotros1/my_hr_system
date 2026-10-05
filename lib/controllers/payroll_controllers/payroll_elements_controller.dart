@@ -102,10 +102,30 @@ class PayrollElementsController extends GetxController {
 
   bool get canGoNext => currentPage.value + 1 < totalPages;
 
-  Map<String, dynamic> get basedElementDropdownItems => {
-    for (final option in basedElementOptions)
-      option.id: {'_id': option.id, 'name': option.name},
-  };
+  Map<String, dynamic> get basedElementDropdownItems {
+    final unavailableElementIds = basedElements
+        .where((element) => element.id != editingBasedElementId.value)
+        .map((element) => element.elementId)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    return {
+      for (final option in basedElementOptions)
+        if (!unavailableElementIds.contains(option.id))
+          option.id: {'_id': option.id, 'name': option.name},
+    };
+  }
+
+  bool get hasDuplicateBasedElementSelection {
+    final selectedId = selectedBasedElementId.value;
+    if (selectedId == null || selectedId.isEmpty) return false;
+
+    return basedElements.any(
+      (element) =>
+          element.elementId == selectedId &&
+          element.id != editingBasedElementId.value,
+    );
+  }
 
   String basedElementOptionName(String? id) {
     if (id == null || id.isEmpty) return '';
@@ -315,7 +335,16 @@ class PayrollElementsController extends GetxController {
     selectedBasedElementType.value = element.type.isEmpty
         ? 'Add'
         : element.type;
-    return _loadBasedElementOptions();
+    final loaded = await _loadBasedElementOptions();
+    if (loaded &&
+        element.elementId.isNotEmpty &&
+        element.elementName.isNotEmpty &&
+        !basedElementOptions.any((option) => option.id == element.elementId)) {
+      basedElementOptions.add(
+        PayrollElementOption(id: element.elementId, name: element.elementName),
+      );
+    }
+    return loaded;
   }
 
   Future<bool> _loadBasedElementOptions() async {
@@ -356,6 +385,10 @@ class PayrollElementsController extends GetxController {
     }
     final selectedId = selectedBasedElementId.value;
     if (selectedId == null || selectedId.isEmpty) return false;
+    if (hasDuplicateBasedElementSelection) {
+      await showError('This based element is already added.');
+      return false;
+    }
 
     isSavingBasedElement.value = true;
     try {
