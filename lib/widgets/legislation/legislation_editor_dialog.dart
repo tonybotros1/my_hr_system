@@ -8,6 +8,7 @@ import '../../controllers/payroll_controllers/legislation_controller.dart';
 import '../../models/payroll/legislation_model.dart';
 import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
+import 'social_security_employee_values_dialog.dart';
 
 Future<void> showLegislationEditorDialog(BuildContext context) async {
   final screenSize = MediaQuery.sizeOf(context);
@@ -595,6 +596,15 @@ class _SocialSecurityCard extends GetView<LegislationController> {
                 'Add a separate effective period for every ceiling amount.',
             actionLabel: 'Add new line',
             onPressed: controller.addSocialSecurityCeiling,
+            extraAction: Obx(
+              () => OutlinedButton.icon(
+                onPressed: controller.isEditing
+                    ? () => showSocialSecurityEmployeeValuesDialog(context)
+                    : null,
+                icon: const Icon(Icons.groups_2_outlined, size: 18),
+                label: const Text('Employee values'),
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Obx(
@@ -835,12 +845,14 @@ class _DynamicSectionHeader extends StatelessWidget {
     required this.description,
     required this.actionLabel,
     required this.onPressed,
+    this.extraAction,
   });
 
   final String title;
   final String description;
   final String actionLabel;
   final VoidCallback onPressed;
+  final Widget? extraAction;
 
   @override
   Widget build(BuildContext context) {
@@ -859,13 +871,20 @@ class _DynamicSectionHeader extends StatelessWidget {
           icon: const Icon(Icons.add_rounded, size: 18),
           label: Text(actionLabel),
         );
+        final actions = Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [?extraAction, action],
+        );
         if (constraints.maxWidth < 520) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               copy,
               const SizedBox(height: AppSpacing.xs),
-              action,
+              actions,
             ],
           );
         }
@@ -873,7 +892,7 @@ class _DynamicSectionHeader extends StatelessWidget {
           children: [
             Expanded(child: copy),
             const SizedBox(width: AppSpacing.md),
-            action,
+            actions,
           ],
         );
       },

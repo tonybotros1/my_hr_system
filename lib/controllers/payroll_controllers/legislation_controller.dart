@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../models/payroll/legislation_model.dart';
+import '../../models/payroll/social_security_employee_value_model.dart';
 import '../../routes/app_routes.dart';
 import '../../services/authenticated_api_service.dart';
 import '../../widgets/dialogs/app_alert_dialog.dart';
@@ -92,10 +93,14 @@ class LegislationController extends GetxController {
   final selectedWeekendDays = <String>[].obs;
   final socialSecurityCeilings = <SocialSecurityCeilingFields>[].obs;
   final incomeTaxBrackets = <IncomeTaxBracketFields>[].obs;
+  final socialSecurityEmployeeValues = <SocialSecurityEmployeeValueModel>[].obs;
   final currentLegislationId = ''.obs;
   final isLoading = false.obs;
   final isSaving = false.obs;
+  final isLoadingSocialSecurityEmployeeValues = false.obs;
+  final clearingSocialSecurityEmployeeValueId = RxnString();
   final listError = RxnString();
+  final socialSecurityEmployeeValuesError = RxnString();
   final currentPage = 0.obs;
   final pageSize = 1.obs;
 
@@ -184,6 +189,9 @@ class LegislationController extends GetxController {
 
   void prepareNewLegislation() {
     currentLegislationId.value = '';
+    socialSecurityEmployeeValues.clear();
+    socialSecurityEmployeeValuesError.value = null;
+    clearingSocialSecurityEmployeeValueId.value = null;
     _clearEditorValues();
     addSocialSecurityCeiling();
     addIncomeTaxBracket();
@@ -191,6 +199,9 @@ class LegislationController extends GetxController {
 
   void prepareExistingLegislation(LegislationModel legislation) {
     currentLegislationId.value = legislation.id;
+    socialSecurityEmployeeValues.clear();
+    socialSecurityEmployeeValuesError.value = null;
+    clearingSocialSecurityEmployeeValueId.value = null;
     _clearEditorValues();
     name.text = legislation.name;
     selectedWeekendDays.assignAll(legislation.weekend);
@@ -243,6 +254,93 @@ class LegislationController extends GetxController {
     if (index < 0 || index >= socialSecurityCeilings.length) return;
     socialSecurityCeilings.removeAt(index).dispose();
     if (socialSecurityCeilings.isEmpty) addSocialSecurityCeiling();
+  }
+
+  Future<void> fetchSocialSecurityEmployeeValues() async {
+    final legislationId = currentLegislationId.value.trim();
+    if (legislationId.isEmpty || isLoadingSocialSecurityEmployeeValues.value) {
+      return;
+    }
+
+    isLoadingSocialSecurityEmployeeValues.value = true;
+    socialSecurityEmployeeValuesError.value = null;
+    try {
+      final response = await _api.getJson(
+        '/legislation/${Uri.encodeComponent(legislationId)}/social_security_employee_values',
+      );
+      final rawItems = response['employee_values'];
+      if (rawItems is! List) {
+        throw const FormatException('Missing social security employee values');
+      }
+      final values = rawItems
+          .whereType<Map>()
+          .map(
+            (item) => SocialSecurityEmployeeValueModel.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList();
+      values.sort((first, second) {
+        if (first.hasOverride != second.hasOverride) {
+          return first.hasOverride ? -1 : 1;
+        }
+        final employeeComparison = first.employeeName.toLowerCase().compareTo(
+          second.employeeName.toLowerCase(),
+        );
+        if (employeeComparison != 0) return employeeComparison;
+        return (second.startDate ?? DateTime(0)).compareTo(
+          first.startDate ?? DateTime(0),
+        );
+      });
+      socialSecurityEmployeeValues.assignAll(values);
+    } on SessionExpiredException {
+      _openLogin();
+    } on ApiRequestException catch (error) {
+      socialSecurityEmployeeValuesError.value = error.message;
+    } on FormatException {
+      socialSecurityEmployeeValuesError.value =
+          'The server returned invalid social security employee data.';
+    } catch (_) {
+      socialSecurityEmployeeValuesError.value =
+          'Social security employee values could not be loaded.';
+    } finally {
+      isLoadingSocialSecurityEmployeeValues.value = false;
+    }
+  }
+
+  Future<bool> clearSocialSecurityEmployeeOverride(
+    SocialSecurityEmployeeValueModel value,
+  ) async {
+    final legislationId = currentLegislationId.value.trim();
+    if (!value.hasOverride ||
+        value.id.isEmpty ||
+        legislationId.isEmpty ||
+        clearingSocialSecurityEmployeeValueId.value != null) {
+      return false;
+    }
+
+    clearingSocialSecurityEmployeeValueId.value = value.id;
+    try {
+      final response = await _api.patchJson(
+        '/legislation/${Uri.encodeComponent(legislationId)}/social_security_employee_values/${Uri.encodeComponent(value.id)}/clear_override',
+      );
+      if (response['cleared_assignment_id']?.toString() != value.id) {
+        throw const FormatException('Missing cleared assignment');
+      }
+      await fetchSocialSecurityEmployeeValues();
+      return true;
+    } on SessionExpiredException {
+      _openLogin();
+    } on ApiRequestException catch (error) {
+      await showError(error.message);
+    } on FormatException {
+      await showError('The server returned invalid social security data.');
+    } catch (_) {
+      await showError('The social security override could not be cleared.');
+    } finally {
+      clearingSocialSecurityEmployeeValueId.value = null;
+    }
+    return false;
   }
 
   void addIncomeTaxBracket({IncomeTaxBracketModel? bracket}) {
