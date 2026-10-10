@@ -65,6 +65,7 @@ class PayrollElementsController extends GetxController {
   final entryValue = false.obs;
   final standardLink = false.obs;
   final indirect = false.obs;
+  final hasType = false.obs;
   final isLoading = false.obs;
   final isLoadingEditor = false.obs;
   final isSaving = false.obs;
@@ -242,6 +243,7 @@ class PayrollElementsController extends GetxController {
     entryValue.value = false;
     standardLink.value = false;
     indirect.value = false;
+    hasType.value = false;
     basedElements.clear();
   }
 
@@ -463,6 +465,7 @@ class PayrollElementsController extends GetxController {
       entryValue: entryValue.value,
       standardLink: standardLink.value,
       indirect: indirect.value,
+      hasType: hasType.value,
       basedElements: basedElements.toList(growable: false),
     );
   }
@@ -485,6 +488,7 @@ class PayrollElementsController extends GetxController {
     entryValue.value = element.entryValue;
     standardLink.value = element.standardLink;
     indirect.value = element.indirect;
+    hasType.value = element.hasType;
     basedElements.assignAll(element.basedElements);
   }
 

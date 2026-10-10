@@ -15,6 +15,7 @@ class PayrollElementModel {
     required this.entryValue,
     required this.standardLink,
     required this.indirect,
+    required this.hasType,
     required this.basedElements,
   });
 
@@ -31,6 +32,7 @@ class PayrollElementModel {
   final bool entryValue;
   final bool standardLink;
   final bool indirect;
+  final bool hasType;
   final List<BasedElementModel> basedElements;
 
   factory PayrollElementModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +51,7 @@ class PayrollElementModel {
       entryValue: json['is_entry_value'] == true,
       standardLink: json['is_standard_link'] == true,
       indirect: json['is_indirect'] == true,
+      hasType: json['has_type'] == true,
       basedElements: rawBasedElements is List
           ? rawBasedElements
                 .whereType<Map>()
@@ -76,6 +79,7 @@ class PayrollElementModel {
       'is_entry_value': entryValue,
       'is_standard_link': standardLink,
       'is_indirect': indirect,
+      'has_type': hasType,
     };
   }
 }

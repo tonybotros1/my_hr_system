@@ -153,6 +153,7 @@ List<EmployeeRecordColumn> recordColumns(
   ],
   EmployeeRecordKind.payrollElement => [
     EmployeeRecordColumn('Name', (r) => r.text('name_value'), flex: 2),
+    EmployeeRecordColumn('Type', (r) => r.text('type')),
     EmployeeRecordColumn('Value', (r) => _number(r, 'value')),
     EmployeeRecordColumn('Start date', (r) => _date(r, 'start_date')),
     EmployeeRecordColumn('End date', (r) => _date(r, 'end_date')),

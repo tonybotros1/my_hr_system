@@ -483,6 +483,7 @@ void main() {
       'priority': '100',
       'function': 'PY_INPUT_VALUE_FF',
       'is_allow_override': true,
+      'has_type': true,
       'element_details': [
         {
           '_id': 'based-1',
@@ -495,8 +496,10 @@ void main() {
 
     expect(element.id, 'element-1');
     expect(element.allowOverride, isTrue);
+    expect(element.hasType, isTrue);
     expect(element.basedElements.single.elementName, 'Allowance');
     expect(element.toRequestJson()['function'], 'PY_INPUT_VALUE_FF');
+    expect(element.toRequestJson()['has_type'], isTrue);
   });
 
   test('payroll based-element choices exclude elements already added', () {

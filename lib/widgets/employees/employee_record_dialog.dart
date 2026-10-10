@@ -245,6 +245,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   Future<bool>? _leaveCalculation;
   String _payrollValueLabel = 'Value';
   bool _payrollValueEnabled = false;
+  bool _payrollHasType = false;
   int _payrollSettingsRequest = 0;
 
   EmployeesController get controller => Get.find<EmployeesController>();
@@ -278,6 +279,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     if (widget.kind == EmployeeRecordKind.payrollElement) {
       _payrollValueLabel = _payrollEntryValueLabel(record?.data);
       _payrollValueEnabled = _payrollAllowsEntryValue(record?.data);
+      _payrollHasType = _raw('type').isNotEmpty;
       if (_ids['name']?.isNotEmpty == true) {
         unawaited(_loadSelectedPayrollElementSettings());
       }
@@ -449,8 +451,11 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
           setState(() {
             _payrollValueLabel = _payrollEntryValueLabel(element);
             _payrollValueEnabled = _payrollAllowsEntryValue(element);
+            _payrollHasType = _payrollRequiresType(element);
+            _fields['type']!.clear();
           });
-          if (!element.containsKey('is_entry_value')) {
+          if (!element.containsKey('is_entry_value') ||
+              !element.containsKey('has_type')) {
             unawaited(_loadSelectedPayrollElementSettings());
           }
         },
@@ -459,9 +464,12 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
           setState(() {
             _payrollValueLabel = 'Value';
             _payrollValueEnabled = false;
+            _payrollHasType = false;
+            _fields['type']!.clear();
           });
         },
       ),
+      if (_payrollHasType) _text('type', 'Type', 'Enter type', required: true),
       _text(
         'value',
         _payrollValueLabel,
@@ -858,6 +866,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     },
     EmployeeRecordKind.payrollElement => {
       'name': _ids['name'],
+      'type': _payrollHasType ? _value('type') : null,
       'value': _double('value'),
       'start_date': _isoOrNull('start_date'),
       'end_date': _isoOrNull('end_date'),
@@ -936,6 +945,11 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     return value == true || employeeString(value).toLowerCase() == 'true';
   }
 
+  bool _payrollRequiresType(Map<String, dynamic>? element) {
+    final value = element?['has_type'];
+    return value == true || employeeString(value).toLowerCase() == 'true';
+  }
+
   Future<void> _loadSelectedPayrollElementSettings() async {
     final request = ++_payrollSettingsRequest;
     final selectedId = _ids['name'] ?? '';
@@ -949,7 +963,8 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     var settings = option is Map
         ? Map<String, dynamic>.from(option)
         : <String, dynamic>{};
-    if (!settings.containsKey('is_entry_value')) {
+    if (!settings.containsKey('is_entry_value') ||
+        !settings.containsKey('has_type')) {
       settings = await controller.payrollElementDetails(selectedId);
     }
     if (!mounted || request != _payrollSettingsRequest) return;
@@ -957,10 +972,17 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
 
     final label = _payrollEntryValueLabel(settings);
     final enabled = _payrollAllowsEntryValue(settings);
-    if (label == _payrollValueLabel && enabled == _payrollValueEnabled) return;
+    final hasType = _payrollRequiresType(settings);
+    if (label == _payrollValueLabel &&
+        enabled == _payrollValueEnabled &&
+        hasType == _payrollHasType) {
+      return;
+    }
     setState(() {
       _payrollValueLabel = label;
       _payrollValueEnabled = enabled;
+      _payrollHasType = hasType;
+      if (!hasType) _fields['type']!.clear();
     });
   }
 

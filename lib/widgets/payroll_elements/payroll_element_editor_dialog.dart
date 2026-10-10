@@ -300,7 +300,7 @@ class _ElementFlags extends GetView<PayrollElementsController> {
       builder: (context, constraints) {
         const gap = AppSpacing.sm;
         final columns = constraints.maxWidth >= 900
-            ? 5
+            ? 6
             : constraints.maxWidth >= 520
             ? 2
             : 1;
@@ -334,6 +334,7 @@ class _ElementFlags extends GetView<PayrollElementsController> {
               label: 'Indirect',
               value: controller.indirect,
             ),
+            _FlagCard(width: width, label: 'Type', value: controller.hasType),
           ],
         );
       },

@@ -70,12 +70,14 @@ class _EmployeesControllerStub extends EmployeesController {
       'name': 'Initial Annual Leave Balance',
       'entry_value_name': 'Number of Days',
       'is_entry_value': true,
+      'has_type': true,
     },
     'element-2': {
       '_id': 'element-2',
       'name': 'Calculated Basic Salary',
       'entry_value_name': 'Calculated Amount',
       'is_entry_value': false,
+      'has_type': false,
     },
   };
 
@@ -88,12 +90,14 @@ class _EmployeesControllerStub extends EmployeesController {
             'name': 'Initial Annual Leave Balance',
             'entry_value_name': 'Number of Days',
             'is_entry_value': true,
+            'has_type': true,
           }
         : {
             '_id': 'element-2',
             'name': 'Calculated Basic Salary',
             'entry_value_name': 'Calculated Amount',
             'is_entry_value': false,
+            'has_type': false,
           };
   }
 
@@ -1155,6 +1159,14 @@ void main() {
 
     expect(find.text('Number of Days'), findsOneWidget);
     expect(find.text('Value'), findsNothing);
+    expect(find.byKey(const ValueKey('employee-record-type')), findsOneWidget);
+    final typeY = tester
+        .getTopLeft(find.byKey(const ValueKey('employee-record-type')))
+        .dy;
+    final selectedValueY = tester
+        .getTopLeft(find.byKey(const ValueKey('employee-record-value')))
+        .dy;
+    expect(typeY, lessThan(selectedValueY));
     expect(
       tester
           .widget<AppTextFormField>(
@@ -1181,6 +1193,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Calculated Amount'), findsOneWidget);
+    expect(find.byKey(const ValueKey('employee-record-type')), findsNothing);
     expect(
       tester
           .widget<AppTextFormField>(
@@ -1215,6 +1228,7 @@ void main() {
                   '_id': 'record-1',
                   'name': 'element-1',
                   'name_value': 'Initial Annual Leave Balance',
+                  'type': 'Monthly',
                   'value': 12,
                 }),
               ),
@@ -1230,6 +1244,12 @@ void main() {
 
     expect(find.text('Number of Days'), findsOneWidget);
     expect(find.text('Value'), findsNothing);
+    final typeField = find.descendant(
+      of: find.byKey(const ValueKey('employee-record-type')),
+      matching: find.byType(TextField),
+    );
+    expect(typeField, findsOneWidget);
+    expect(tester.widget<TextField>(typeField).controller?.text, 'Monthly');
     expect(
       tester
           .widget<AppTextFormField>(
