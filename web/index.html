@@ -18,21 +18,142 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="DataHub AI HR system.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!--
+    Open the connections the app needs right away, while the engine is still
+    downloading: the CanvasKit renderer and Google Fonts come from gstatic, and
+    the first API calls go to the backend.
+  -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://datahubai-backend.onrender.com" crossorigin>
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="my_hr_system">
+  <meta name="apple-mobile-web-app-title" content="DataHub AI">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>my_hr_system</title>
+  <title>DataHub AI</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /*
+      Startup splash. Flutter shows nothing until its engine, code and fonts
+      have downloaded, which on a cold cache takes a couple of seconds. This
+      card mirrors the app's own loading screen so the hand-over is seamless,
+      and it is removed as soon as Flutter paints its first frame.
+    */
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--splash-background, #F4FAF9);
+    }
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      background: linear-gradient(
+        135deg,
+        var(--splash-start, #EDF9F8) 0%,
+        var(--splash-middle, #F8FBFB) 50%,
+        var(--splash-end, #E5F4F2) 100%
+      );
+      transition: opacity 220ms ease;
+    }
+    #splash.splash-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .splash-card {
+      width: 380px;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 34px 32px;
+      background: #FFFFFF;
+      border-radius: 22px;
+      box-shadow: 0 20px 50px rgba(16, 89, 85, 0.14);
+      text-align: center;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .splash-brand {
+      color: var(--splash-primary, #0C9D93);
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .splash-spinner {
+      width: 26px;
+      height: 26px;
+      margin: 26px auto 18px;
+      border: 2.4px solid var(--splash-primary-light, #E7F8F6);
+      border-top-color: var(--splash-primary, #0C9D93);
+      border-radius: 50%;
+      animation: splash-spin 0.9s linear infinite;
+    }
+    .splash-text {
+      color: #7C8A90;
+      font-size: 14px;
+    }
+    @keyframes splash-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <script>
+    // Match the splash to the color palette the user saved in the app, so the
+    // page does not flash teal before a blue or violet workspace appears.
+    (function () {
+      var palettes = {
+        'datahub-teal':  ['#0C9D93', '#E7F8F6', '#F4FAF9', '#EDF9F8', '#F8FBFB', '#E5F4F2'],
+        'ocean-blue':    ['#2F6FEB', '#EAF1FF', '#F5F8FF', '#EEF4FF', '#FAFBFF', '#E8F0FF'],
+        'royal-violet':  ['#7659D7', '#F1EDFF', '#F8F6FD', '#F3EFFF', '#FCFBFF', '#EFEAFA'],
+        'forest-green':  ['#24966A', '#E8F7F0', '#F4F9F6', '#EDF8F1', '#FAFCFA', '#E7F2EB'],
+        'warm-coral':    ['#DF625F', '#FFEFEE', '#FFF8F6', '#FFF1EE', '#FFFCFB', '#F9EAE8']
+      };
+      try {
+        // shared_preferences stores web values JSON-encoded under a prefix.
+        var saved = JSON.parse(localStorage.getItem('flutter.selected_color_palette') || 'null');
+        var colors = palettes[saved];
+        if (!colors) return;
+        var root = document.documentElement.style;
+        root.setProperty('--splash-primary', colors[0]);
+        root.setProperty('--splash-primary-light', colors[1]);
+        root.setProperty('--splash-background', colors[2]);
+        root.setProperty('--splash-start', colors[3]);
+        root.setProperty('--splash-middle', colors[4]);
+        root.setProperty('--splash-end', colors[5]);
+      } catch (_) {
+        // Storage can be unavailable in private windows; keep the defaults.
+      }
+    })();
+  </script>
 </head>
 <body>
+  <div id="splash" role="status" aria-live="polite">
+    <div class="splash-card">
+      <div class="splash-brand">DataHub AI</div>
+      <div class="splash-spinner" aria-hidden="true"></div>
+      <div class="splash-text">Loading your workspace…</div>
+    </div>
+  </div>
+  <script>
+    // Flutter dispatches this event once its first frame has been rendered.
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('splash');
+      if (!splash) return;
+      splash.classList.add('splash-hidden');
+      setTimeout(function () { splash.remove(); }, 260);
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

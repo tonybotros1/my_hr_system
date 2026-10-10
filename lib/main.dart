@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'consts.dart';
 import 'controllers/auth_controllers/loading_screen_controller.dart';
@@ -29,8 +32,16 @@ import 'widgets/employees/employee_workspace_dialog.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Inter and Roboto Mono ship in assets/google_fonts/, so google_fonts must
+  // never fall back to downloading them from fonts.gstatic.com at runtime.
+  GoogleFonts.config.allowRuntimeFetching = false;
   await ThemeController.restoreSavedPalette();
   runApp(MyApp(startupLocation: AppRoutes.startupLocation(Uri.base)));
+  // The large Unicode fallback fonts are registered after the first frame so
+  // they no longer delay startup. Text re-lays out automatically once loaded.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(AppFonts.loadDeferredFallbackFonts());
+  });
 }
 
 Bindings _mainBinding() {
@@ -88,10 +99,15 @@ class MyApp extends StatelessWidget {
             Get.lazyPut(LoginScreenController.new);
           }),
         ),
+        // Workspace screens switch without the default 300 ms fade: the
+        // previous page stays on screen (and keeps painting) for the whole
+        // fade, so on the web every sidebar click paid for two full pages.
         GetPage(
           name: AppRoutes.main,
           page: () => const MainScreen(),
           binding: _mainBinding(),
+          transition: Transition.noTransition,
+          transitionDuration: Duration.zero,
         ),
         GetPage(
           name: AppRoutes.employeeWorkspace,
@@ -116,6 +132,8 @@ class MyApp extends StatelessWidget {
             ),
           ),
           binding: _mainBinding(),
+          transition: Transition.noTransition,
+          transitionDuration: Duration.zero,
         ),
       ],
     );

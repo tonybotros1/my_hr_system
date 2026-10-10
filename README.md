@@ -151,7 +151,7 @@ Canonical `hr_screen_access` values are:
 | File selection | `file_picker` |
 | Payroll documents | `pdf` and `printing` |
 | Web integrations | Dart `web` package and conditional imports |
-| Typography | Bundled Cairo and Noto font assets, with Google Fonts support |
+| Typography | Inter and Roboto Mono through `google_fonts` (bundled from `assets/google_fonts/`), with Cairo and Noto fallbacks |
 | Backend | FastAPI / Python 3.12 |
 | Database | MongoDB |
 
@@ -162,7 +162,8 @@ The Dart SDK constraint is declared in `pubspec.yaml` as `^3.12.2`. Use a stable
 ```text
 my_hr_system/
 ├── assets/
-│   └── fonts/                         # Bundled Cairo and Noto fonts
+│   ├── fonts/                         # Bundled Cairo and Noto fonts
+│   └── google_fonts/                  # Inter and Roboto Mono files used by google_fonts
 ├── lib/
 │   ├── config/
 │   │   ├── app_config.dart            # Backend URL and request timeout
@@ -473,7 +474,15 @@ flutter build web --release --no-source-maps \
 firebase deploy --only hosting --project compass-automatic-gear
 ```
 
-Always include the production `BACKEND_URL` when building for deployment: the default in `AppConfig` is a local development address. Only the generated `build/web/` assets are published, and source maps are excluded. Hosting requires cache revalidation so browsers can pick up changed bundles on a subsequent visit.
+Always include the production `BACKEND_URL` when building for deployment: the default in `AppConfig` is a local development address. Only the generated `build/web/` assets are published, and source maps are excluded. Hosting requires cache revalidation for `index.html`, `flutter_bootstrap.js`, `main.dart.js` and the asset manifests so browsers pick up changed bundles on a subsequent visit; font and image files are cached for a week because their contents do not change between releases.
+
+### Web startup performance
+
+- Workspace routes (`/mainScreen` and `/mainScreen/<screen>`) use `Transition.noTransition`. Each sidebar click pushes a new page, and the default 300 ms fade kept both pages painting for its whole duration.
+- `assets/google_fonts/` must contain the Inter and Roboto Mono files listed in its README. `google_fonts` then loads them from the bundle; without them every visit downloads about 480 KB from `fonts.gstatic.com` after the first frame and the text re-flows when the fonts arrive.
+- Noto Sans and Noto Sans Symbols 2 are declared as plain assets and registered by `AppFonts.loadDeferredFallbackFonts` after the first frame. Declaring them under `fonts:` made the web engine download about 1.2 MB before rendering anything. Cairo stays under `fonts:` so Arabic text is correct immediately.
+- `web/index.html` shows a splash card in the saved palette colors until Flutter's `flutter-first-frame` event, and preconnects to the backend and the gstatic hosts.
+- `AppTextStyles` caches the styles it builds. Every `GoogleFonts.inter(...)` call rebuilds the family's variant table, and the getters run in every table cell on each rebuild.
 
 ### Build
 
@@ -586,7 +595,7 @@ Use existing shared theme tokens and form components instead of creating screen-
 
 ### Missing-character font warnings
 
-Run `flutter pub get` and confirm the font files under `assets/fonts/` are present and declared in `pubspec.yaml`. The app bundles Cairo, Noto Sans, and Noto Sans Symbols 2 as fallbacks.
+Run `flutter pub get` and confirm the font files under `assets/fonts/` are present and declared in `pubspec.yaml`. The app bundles Cairo, Noto Sans, and Noto Sans Symbols 2 as fallbacks; Noto Sans and Noto Sans Symbols 2 are registered shortly after the first frame by `AppFonts.loadDeferredFallbackFonts`, so a symbol can briefly use a fallback glyph during startup only.
 
 ## Security and production notes
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:google_fonts/google_fonts.dart';
 
 import 'models/settings/app_color_palette.dart';
@@ -17,6 +18,7 @@ class AppColors {
 
   static void applyPalette(AppColorPalette palette) {
     _activePalette = palette;
+    AppTextStyles._invalidateCache();
   }
 
   static Color get primary => _activePalette.primary;
@@ -85,6 +87,43 @@ class AppFonts {
     'Noto Sans',
     'Noto Sans Symbols 2',
   ];
+
+  /// Fallback fonts that are too large to sit on the startup path.
+  ///
+  /// Cairo stays declared under `fonts:` in `pubspec.yaml`, so Arabic text is
+  /// right from the first frame. Noto Sans and Noto Sans Symbols 2 (about
+  /// 1.2 MB together) are plain assets registered by
+  /// [loadDeferredFallbackFonts] right after the first frame instead, because
+  /// the web engine downloads every font in the font manifest before it
+  /// renders anything.
+  static const Map<String, List<String>> _deferredFallbackAssets = {
+    'Noto Sans': ['assets/fonts/NotoSans-Regular.ttf'],
+    'Noto Sans Symbols 2': ['assets/fonts/NotoSansSymbols2-Regular.ttf'],
+  };
+
+  static Future<void>? _deferredFallbackLoad;
+
+  /// Registers the deferred fallback fonts once. Text that needs them is
+  /// re-laid out automatically when each family finishes loading.
+  static Future<void> loadDeferredFallbackFonts() {
+    return _deferredFallbackLoad ??= Future.wait(
+      _deferredFallbackAssets.entries.map(_loadFallbackFamily),
+    ).then((_) {});
+  }
+
+  static Future<void> _loadFallbackFamily(
+    MapEntry<String, List<String>> family,
+  ) async {
+    try {
+      final loader = FontLoader(family.key);
+      for (final asset in family.value) {
+        loader.addFont(rootBundle.load(asset));
+      }
+      await loader.load();
+    } catch (error) {
+      debugPrint('Fallback font "${family.key}" could not be loaded: $error');
+    }
+  }
 }
 
 /// Standard spacing values used throughout the project.
@@ -322,208 +361,296 @@ class AppShadows {
 class AppTextStyles {
   AppTextStyles._();
 
+  // Every `GoogleFonts.inter(...)` call rebuilds the full variant table for the
+  // family and schedules a font-availability check, and these getters run in
+  // every table cell and dialog field on each rebuild. Styles are therefore
+  // built once and reused; `TextStyle` is immutable, so sharing is safe. The
+  // cache is cleared whenever the color palette changes.
+  static final Map<String, TextStyle> _cache = <String, TextStyle>{};
+
+  static void _invalidateCache() => _cache.clear();
+
+  static TextStyle _cached(String key, TextStyle Function() build) {
+    return _cache[key] ??= build();
+  }
+
   static TextStyle _withFallback(TextStyle style) {
     return style.copyWith(fontFamilyFallback: AppFonts.fallbackFamilies);
   }
 
-  static TextStyle heading({double fontSize = 23}) {
-    return _withFallback(
+  static TextStyle heading({double fontSize = 23}) => _cached(
+    'heading:$fontSize',
+    () => _withFallback(
       GoogleFonts.inter(
         color: AppColors.textPrimary,
         fontSize: fontSize,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.6,
       ),
-    );
-  }
-
-  static TextStyle get brand => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.primary,
-      fontSize: 20,
-      fontWeight: FontWeight.w700,
     ),
   );
 
-  static TextStyle get body => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textPrimary,
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
+  static TextStyle get brand => _cached(
+    'brand',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.primary,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
 
-  static TextStyle get bodyMuted =>
-      body.copyWith(color: AppColors.textSecondary, height: 1.5);
-
-  static TextStyle get fieldLabel => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textPrimary,
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
+  static TextStyle get body => _cached(
+    'body',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
     ),
   );
 
-  static TextStyle get input => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textPrimary,
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
+  static TextStyle get bodyMuted => _cached(
+    'bodyMuted',
+    () => body.copyWith(color: AppColors.textSecondary, height: 1.5),
+  );
+
+  static TextStyle get fieldLabel => _cached(
+    'fieldLabel',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textPrimary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
     ),
   );
 
-  static TextStyle get hint => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textHint,
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
+  static TextStyle get input => _cached(
+    'input',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
     ),
   );
 
-  static TextStyle get button => _withFallback(
-    GoogleFonts.inter(
-      color: Colors.white,
-      fontSize: 14,
-      fontWeight: FontWeight.w700,
+  static TextStyle get hint => _cached(
+    'hint',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textHint,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
     ),
   );
 
-  static TextStyle get link => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.primary,
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
+  static TextStyle get button => _cached(
+    'button',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
 
-  static TextStyle get error => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.errorText,
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      height: 1.35,
+  static TextStyle get link => _cached(
+    'link',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.primary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
     ),
   );
 
-  static TextStyle get footer => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textFooter,
-      fontSize: 11,
-      fontWeight: FontWeight.w400,
+  static TextStyle get error => _cached(
+    'error',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.errorText,
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        height: 1.35,
+      ),
     ),
   );
 
-  static TextStyle get companyName => _withFallback(
-    GoogleFonts.inter(
+  static TextStyle get footer => _cached(
+    'footer',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textFooter,
+        fontSize: 11,
+        fontWeight: FontWeight.w400,
+      ),
+    ),
+  );
+
+  static TextStyle get companyName => _cached(
+    'companyName',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.surface,
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+
+  static TextStyle get sidebarLabel => _cached(
+    'sidebarLabel',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.sidebarLabel,
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1,
+      ),
+    ),
+  );
+
+  static TextStyle get navigationItem => _cached(
+    'navigationItem',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.sidebarText,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+
+  static TextStyle get navigationItemSelected => _cached(
+    'navigationItemSelected',
+    () => navigationItem.copyWith(
       color: AppColors.surface,
-      fontSize: 15,
       fontWeight: FontWeight.w700,
     ),
   );
 
-  static TextStyle get sidebarLabel => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.sidebarLabel,
-      fontSize: 10,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 1,
+  static TextStyle get profileName => _cached(
+    'profileName',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.surface,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
 
-  static TextStyle get navigationItem => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.sidebarText,
-      fontSize: 13,
-      fontWeight: FontWeight.w600,
+  static TextStyle get profileDetail => _cached(
+    'profileDetail',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.sidebarProfileText,
+        fontSize: 10,
+        fontWeight: FontWeight.w400,
+      ),
     ),
   );
 
-  static TextStyle get navigationItemSelected => navigationItem.copyWith(
-    color: AppColors.surface,
-    fontWeight: FontWeight.w700,
-  );
-
-  static TextStyle get profileName => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.surface,
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
+  static TextStyle get pageHeading => _cached(
+    'pageHeading',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textPrimary,
+        fontSize: 29,
+        height: 1.2,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.6,
+      ),
     ),
   );
 
-  static TextStyle get profileDetail => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.sidebarProfileText,
-      fontSize: 10,
-      fontWeight: FontWeight.w400,
+  static TextStyle get listCount => _cached(
+    'listCount',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textSecondary,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+      ),
     ),
   );
 
-  static TextStyle get pageHeading => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textPrimary,
-      fontSize: 29,
-      height: 1.2,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.6,
+  static TextStyle get segment => _cached(
+    'segment',
+    () => _withFallback(
+      GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
     ),
   );
 
-  static TextStyle get listCount => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textSecondary,
-      fontSize: 13,
-      fontWeight: FontWeight.w400,
+  static TextStyle get tableHeader => _cached(
+    'tableHeader',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: Color(0xFF5E7775),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.55,
+      ),
     ),
   );
 
-  static TextStyle get segment => _withFallback(
-    GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
-  );
-
-  static TextStyle get tableHeader => _withFallback(
-    GoogleFonts.inter(
-      color: Color(0xFF5E7775),
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.55,
+  static TextStyle get tableBody => _cached(
+    'tableBody',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: AppColors.textPrimary,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+      ),
     ),
   );
 
-  static TextStyle get tableBody => _withFallback(
-    GoogleFonts.inter(
-      color: AppColors.textPrimary,
-      fontSize: 13,
-      fontWeight: FontWeight.w400,
+  static TextStyle get tableKey => _cached(
+    'tableKey',
+    () => _withFallback(
+      GoogleFonts.robotoMono(
+        color: Color(0xFF446A68),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+      ),
     ),
   );
 
-  static TextStyle get tableKey => _withFallback(
-    GoogleFonts.robotoMono(
-      color: Color(0xFF446A68),
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.2,
+  static TextStyle get badge => _cached(
+    'badge',
+    () => _withFallback(
+      GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
     ),
   );
 
-  static TextStyle get badge => _withFallback(
-    GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
-  );
-
-  static TextStyle get sectionTitle => _withFallback(
-    GoogleFonts.inter(
-      color: Color(0xFF244947),
-      fontSize: 15,
-      fontWeight: FontWeight.w700,
+  static TextStyle get sectionTitle => _cached(
+    'sectionTitle',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: Color(0xFF244947),
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
 
-  static TextStyle get checkboxLabel => _withFallback(
-    GoogleFonts.inter(
-      color: Color(0xFF496663),
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
+  static TextStyle get checkboxLabel => _cached(
+    'checkboxLabel',
+    () => _withFallback(
+      GoogleFonts.inter(
+        color: Color(0xFF496663),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
     ),
   );
 }
