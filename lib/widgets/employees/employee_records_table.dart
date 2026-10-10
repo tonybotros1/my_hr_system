@@ -152,8 +152,11 @@ List<EmployeeRecordColumn> recordColumns(
     EmployeeRecordColumn('Expiry date', (r) => _date(r, 'expiry_date')),
   ],
   EmployeeRecordKind.payrollElement => [
-    EmployeeRecordColumn('Name', (r) => r.text('name_value'), flex: 2),
-    EmployeeRecordColumn('Type', (r) => r.text('type')),
+    EmployeeRecordColumn(
+      'Name',
+      (r) => _nameWithOptionalType(r.text('name_value'), r.text('type')),
+      flex: 2,
+    ),
     EmployeeRecordColumn('Value', (r) => _number(r, 'value')),
     EmployeeRecordColumn('Start date', (r) => _date(r, 'start_date')),
     EmployeeRecordColumn('End date', (r) => _date(r, 'end_date')),
@@ -352,6 +355,11 @@ String _number(EmployeeRecord record, String key) {
   return number == number.roundToDouble()
       ? number.toStringAsFixed(0)
       : number.toStringAsFixed(2);
+}
+
+String _nameWithOptionalType(String name, String type) {
+  final cleanedType = type.trim();
+  return cleanedType.isEmpty ? name : '$name - $cleanedType';
 }
 
 String _display(String value) => value.trim().isEmpty ? '—' : value;

@@ -602,7 +602,10 @@ class _ElementsTable extends StatelessWidget {
           .map(
             (element) => Row(
               children: [
-                _DataCell(element.name, flex: 3),
+                _DataCell(
+                  _nameWithOptionalType(element.name, element.employeeType),
+                  flex: 3,
+                ),
                 _MoneyCell(element.payment, color: AppColors.success),
                 _MoneyCell(element.deduction, color: AppColors.error),
               ],
@@ -634,7 +637,10 @@ class _BalancesTable extends StatelessWidget {
           .map(
             (element) => Row(
               children: [
-                _DataCell(element.name, flex: 3),
+                _DataCell(
+                  _nameWithOptionalType(element.name, element.employeeType),
+                  flex: 3,
+                ),
                 _NumberCell(element.number, color: const Color(0xFF3A79B8)),
                 _NumberCell(element.information, color: AppColors.success),
               ],
@@ -906,6 +912,11 @@ class _SmallLoader extends StatelessWidget {
 }
 
 double mathMax(double first, double second) => first > second ? first : second;
+
+String _nameWithOptionalType(String name, String type) {
+  final cleanedType = type.trim();
+  return cleanedType.isEmpty ? name : '$name - $cleanedType';
+}
 
 String _formatAmount(double value) {
   final fixed = value.abs().toStringAsFixed(2);

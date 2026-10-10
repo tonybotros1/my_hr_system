@@ -14,7 +14,10 @@ import '../dialogs/app_alert_dialog.dart';
 import '../drop_down_menu.dart';
 import '../form_fields/app_date_form_field.dart';
 import '../form_fields/app_text_form_field.dart';
+import 'employee_lookup_values_dialog.dart';
 import 'employee_records_table.dart';
+
+const _payrollElementTypesListCode = 'PAYROLL_ELEMENT_TYPES';
 
 Future<bool> showEmployeeRecordDialog(
   BuildContext context, {
@@ -261,7 +264,9 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
       'country': _raw('country'),
       'city': _raw('city'),
       'nationality': _raw('nationality'),
-      'type': _raw('type'),
+      'type': widget.kind == EmployeeRecordKind.payrollElement
+          ? (_raw('type_id').isNotEmpty ? _raw('type_id') : _raw('type'))
+          : _raw('type'),
       'bank_name': _raw('bank_name'),
       'health_card_type': _raw('health_card_type'),
       'health_card_holder': _raw('health_card_holder'),
@@ -452,6 +457,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             _payrollValueLabel = _payrollEntryValueLabel(element);
             _payrollValueEnabled = _payrollAllowsEntryValue(element);
             _payrollHasType = _payrollRequiresType(element);
+            _ids['type'] = '';
             _fields['type']!.clear();
           });
           if (!element.containsKey('is_entry_value') ||
@@ -465,11 +471,27 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
             _payrollValueLabel = 'Value';
             _payrollValueEnabled = false;
             _payrollHasType = false;
+            _ids['type'] = '';
             _fields['type']!.clear();
           });
         },
       ),
-      if (_payrollHasType) _text('type', 'Type', 'Enter type', required: true),
+      if (_payrollHasType)
+        _dropdown(
+          keyName: 'type',
+          label: 'Type',
+          onOpen: () => controller.listValues(_payrollElementTypesListCode),
+          onManage: () => unawaited(
+            showEmployeeLookupValuesDialog(
+              context,
+              controller: controller,
+              code: _payrollElementTypesListCode,
+              title: 'Payroll Element Types',
+              singularTitle: 'Payroll Element Type',
+            ),
+          ),
+          required: true,
+        ),
       _text(
         'value',
         _payrollValueLabel,
@@ -693,35 +715,50 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     bool fullWidth = false,
     ValueChanged<Map<String, dynamic>>? onSelected,
     VoidCallback? onDeleted,
+    VoidCallback? onManage,
   }) {
     return _GridField(
       fullWidth: fullWidth,
-      child: LayoutBuilder(
-        builder: (context, constraints) => CustomDropdown(
-          width: constraints.maxWidth,
-          hintText: label,
-          textcontroller: _fields[keyName]!.text,
-          showedSelectedName: displayKey,
-          validator: required,
-          onOpen: onOpen,
-          onDelete: () {
-            setState(() {
-              _ids[keyName] = '';
-              _fields[keyName]!.clear();
-            });
-            onDeleted?.call();
-          },
-          onChanged: (key, value) {
-            final item = Map<String, dynamic>.from(value as Map);
-            setState(() {
-              _ids[keyName] = key;
-              _fields[keyName]!.text =
-                  employeeString(item[displayKey]).isNotEmpty
-                  ? employeeString(item[displayKey])
-                  : employeeString(item[fallbackDisplayKey ?? 'name']);
-            });
-            onSelected?.call(item);
-          },
+      child: KeyedSubtree(
+        key: ValueKey('employee-record-$keyName'),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => CustomDropdown(
+                  width: constraints.maxWidth,
+                  hintText: label,
+                  textcontroller: _fields[keyName]!.text,
+                  showedSelectedName: displayKey,
+                  validator: required,
+                  onOpen: onOpen,
+                  onDelete: () {
+                    setState(() {
+                      _ids[keyName] = '';
+                      _fields[keyName]!.clear();
+                    });
+                    onDeleted?.call();
+                  },
+                  onChanged: (key, value) {
+                    final item = Map<String, dynamic>.from(value as Map);
+                    setState(() {
+                      _ids[keyName] = key;
+                      _fields[keyName]!.text =
+                          employeeString(item[displayKey]).isNotEmpty
+                          ? employeeString(item[displayKey])
+                          : employeeString(item[fallbackDisplayKey ?? 'name']);
+                    });
+                    onSelected?.call(item);
+                  },
+                ),
+              ),
+            ),
+            if (onManage != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              EmployeeLookupManageButton(label: label, onPressed: onManage),
+            ],
+          ],
         ),
       ),
     );
@@ -813,7 +850,10 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         'health_card_type',
         'health_card_holder',
       ],
-      EmployeeRecordKind.payrollElement => ['name'],
+      EmployeeRecordKind.payrollElement => [
+        'name',
+        if (_payrollHasType) 'type',
+      ],
       EmployeeRecordKind.loanAdvance => ['type'],
       EmployeeRecordKind.leave => ['leave_type'],
       EmployeeRecordKind.contactRelative => ['relationship'],
@@ -866,7 +906,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     },
     EmployeeRecordKind.payrollElement => {
       'name': _ids['name'],
-      'type': _payrollHasType ? _value('type') : null,
+      'type': _payrollHasType ? _ids['type'] : null,
       'value': _double('value'),
       'start_date': _isoOrNull('start_date'),
       'end_date': _isoOrNull('end_date'),
@@ -982,7 +1022,10 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
       _payrollValueLabel = label;
       _payrollValueEnabled = enabled;
       _payrollHasType = hasType;
-      if (!hasType) _fields['type']!.clear();
+      if (!hasType) {
+        _ids['type'] = '';
+        _fields['type']!.clear();
+      }
     });
   }
 

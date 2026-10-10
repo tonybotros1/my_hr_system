@@ -117,10 +117,14 @@ class _EmployeesControllerStub extends EmployeesController {
   @override
   Future<Map<String, dynamic>> listValues(
     String code, {
-    bool refresh = false,
-  }) async => {
-    'employer-1': {'_id': 'employer-1', 'name': 'DataHub AI'},
-  };
+    bool refresh = true,
+  }) async => code == 'PAYROLL_ELEMENT_TYPES'
+      ? {
+          'type-1': {'_id': 'type-1', 'name': 'Monthly'},
+        }
+      : {
+          'employer-1': {'_id': 'employer-1', 'name': 'DataHub AI'},
+        };
 
   @override
   Future<Map<String, List<int>>> pickAttachmentFiles() async => {
@@ -1160,6 +1164,7 @@ void main() {
     expect(find.text('Number of Days'), findsOneWidget);
     expect(find.text('Value'), findsNothing);
     expect(find.byKey(const ValueKey('employee-record-type')), findsOneWidget);
+    expect(find.byTooltip('Manage Type'), findsOneWidget);
     final typeY = tester
         .getTopLeft(find.byKey(const ValueKey('employee-record-type')))
         .dy;
@@ -1175,6 +1180,19 @@ void main() {
           .enabled,
       isTrue,
     );
+
+    await tester.tap(find.text('Type').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Monthly').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Monthly'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Manage Type'));
+    await tester.pumpAndSettle();
+    expect(find.text('Payroll Element Types'), findsOneWidget);
+    expect(find.text('New Value'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
 
     final valueTextField = find.descendant(
       of: find.byKey(const ValueKey('employee-record-value')),
@@ -1229,6 +1247,8 @@ void main() {
                   'name': 'element-1',
                   'name_value': 'Initial Annual Leave Balance',
                   'type': 'Monthly',
+                  'type_id': 'type-1',
+                  'type_name': 'Monthly',
                   'value': 12,
                 }),
               ),
@@ -1244,12 +1264,15 @@ void main() {
 
     expect(find.text('Number of Days'), findsOneWidget);
     expect(find.text('Value'), findsNothing);
-    final typeField = find.descendant(
+    final typeDropdown = find.descendant(
       of: find.byKey(const ValueKey('employee-record-type')),
-      matching: find.byType(TextField),
+      matching: find.byType(CustomDropdown),
     );
-    expect(typeField, findsOneWidget);
-    expect(tester.widget<TextField>(typeField).controller?.text, 'Monthly');
+    expect(typeDropdown, findsOneWidget);
+    expect(
+      tester.widget<CustomDropdown>(typeDropdown).textcontroller,
+      'Monthly',
+    );
     expect(
       tester
           .widget<AppTextFormField>(

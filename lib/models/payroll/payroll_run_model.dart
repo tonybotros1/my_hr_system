@@ -164,6 +164,7 @@ class PayrollRunElement {
     required this.id,
     required this.name,
     required this.type,
+    required this.employeeType,
     required this.value,
     required this.payment,
     required this.deduction,
@@ -174,6 +175,7 @@ class PayrollRunElement {
   final String id;
   final String name;
   final String type;
+  final String employeeType;
   final double value;
   final double payment;
   final double deduction;
@@ -185,6 +187,7 @@ class PayrollRunElement {
       id: _asString(json['_id']),
       name: _asString(json['element_name']),
       type: _asString(json['element_type']),
+      employeeType: _asString(json['employee_type']),
       value: _asDouble(json['value']),
       payment: _asDouble(json['payment']),
       deduction: _asDouble(json['deduction']),

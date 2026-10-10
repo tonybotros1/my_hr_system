@@ -2005,30 +2005,7 @@ class _EmploymentLookupField extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
-        Padding(
-          padding: const EdgeInsets.only(top: 23),
-          child: ExcludeFocus(
-            child: SizedBox.square(
-              dimension: AppSizes.inputMinHeight,
-              child: onManage == null
-                  ? const SizedBox.shrink()
-                  : IconButton(
-                      tooltip: 'Manage $label',
-                      onPressed: onManage,
-                      style: IconButton.styleFrom(
-                        foregroundColor: AppColors.primaryDark,
-                        backgroundColor: AppColors.primaryLight,
-                        hoverColor: AppColors.segmentBackground,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadii.field),
-                          side: const BorderSide(color: AppColors.borderStrong),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add_card_outlined, size: 18),
-                    ),
-            ),
-          ),
-        ),
+        EmployeeLookupManageButton(label: label, onPressed: onManage),
       ],
     );
   }

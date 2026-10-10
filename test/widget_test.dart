@@ -29,6 +29,7 @@ import 'package:my_hr_system/services/auth_session_service.dart';
 import 'package:my_hr_system/services/authenticated_api_service.dart';
 import 'package:my_hr_system/services/hr_access_service.dart';
 import 'package:my_hr_system/services/theme_controller.dart';
+import 'package:my_hr_system/widgets/employees/employee_records_table.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -654,6 +655,7 @@ void main() {
               '_id': 'result-1',
               'element_name': 'Basic Salary',
               'element_type': 'Earning',
+              'employee_type': 'Monthly',
               'payment': 3651.42,
               'deduction': 0,
             },
@@ -669,7 +671,29 @@ void main() {
       details.employees.single.payrollElements.single.name,
       'Basic Salary',
     );
+    expect(
+      details.employees.single.payrollElements.single.employeeType,
+      'Monthly',
+    );
     expect(PayrollRunSummary.fromDetails(details).paymentNumber, 'PP-0001');
+  });
+
+  test('shows payroll assignment type inside the employee Name column', () {
+    final columns = recordColumns(EmployeeRecordKind.payrollElement);
+
+    expect(columns.map((column) => column.label), isNot(contains('Type')));
+    expect(
+      columns.first.value(
+        const EmployeeRecord({'name_value': 'Basic Salary', 'type': 'Monthly'}),
+      ),
+      'Basic Salary - Monthly',
+    );
+    expect(
+      columns.first.value(
+        const EmployeeRecord({'name_value': 'Housing', 'type': '  '}),
+      ),
+      'Housing',
+    );
   });
 
   test('uploads payslip bytes as an authenticated multipart request', () async {

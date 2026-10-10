@@ -50,6 +50,45 @@ Future<void> showEmployeeLookupValuesDialog(
   }
 }
 
+class EmployeeLookupManageButton extends StatelessWidget {
+  const EmployeeLookupManageButton({
+    required this.label,
+    required this.onPressed,
+    super.key,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 23),
+      child: ExcludeFocus(
+        child: SizedBox.square(
+          dimension: AppSizes.inputMinHeight,
+          child: onPressed == null
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Manage $label',
+                  onPressed: onPressed,
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: AppColors.primaryLight,
+                    hoverColor: AppColors.segmentBackground,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.field),
+                      side: const BorderSide(color: AppColors.borderStrong),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_card_outlined, size: 18),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LookupValuesManager extends StatefulWidget {
   const _LookupValuesManager({
     required this.controller,
