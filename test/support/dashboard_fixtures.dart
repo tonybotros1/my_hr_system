@@ -109,6 +109,7 @@ class DashboardApiFixture extends AuthenticatedApiService {
   Future<Map<String, dynamic>> postJson(
     String path, {
     Map<String, dynamic>? body,
+    Duration? timeout,
   }) async {
     calls.add(path);
     if (path != '/public_holidays/get_all_holidays' ||

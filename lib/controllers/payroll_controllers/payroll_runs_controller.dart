@@ -12,6 +12,8 @@ import '../../services/payroll_run_document_service.dart';
 import '../../widgets/dialogs/app_alert_dialog.dart';
 
 class PayrollRunsController extends GetxController {
+  static const Duration _createPayrollRunTimeout = Duration(minutes: 2);
+
   PayrollRunsController({
     AuthenticatedApiService? api,
     PayrollRunDocumentService? documents,
@@ -415,6 +417,7 @@ class PayrollRunsController extends GetxController {
       final response = await _api.postJson(
         '/payroll_runs/payroll_run',
         body: body,
+        timeout: _createPayrollRunTimeout,
       );
       final rawRun = response['added_run'];
       if (rawRun is! Map) throw const FormatException('Missing added run');

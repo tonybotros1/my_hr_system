@@ -1299,6 +1299,41 @@ void main() {
     expect(await api.patchJsonValue('/status-test', body: false), isEmpty);
     expect(await api.deleteJson('/delete-test'), isEmpty);
   });
+
+  test('postJson supports a longer timeout for slow operations', () async {
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
+    final client = MockClient((request) async {
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      return http.Response(
+        '{"completed":true}',
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final api = AuthenticatedApiService(
+      httpClient: client,
+      session: AuthSessionService(),
+    );
+
+    await expectLater(
+      api.postJson('/slow-operation', timeout: const Duration(milliseconds: 5)),
+      throwsA(
+        isA<ApiRequestException>().having(
+          (error) => error.message,
+          'message',
+          'The server took too long to respond.',
+        ),
+      ),
+    );
+
+    expect(
+      await api.postJson(
+        '/slow-operation',
+        timeout: const Duration(milliseconds: 100),
+      ),
+      {'completed': true},
+    );
+  });
 }
 
 class _PayrollRowsProbe extends StatelessWidget {

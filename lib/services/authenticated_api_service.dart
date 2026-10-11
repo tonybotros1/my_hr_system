@@ -43,8 +43,14 @@ class AuthenticatedApiService extends GetxService {
   Future<Map<String, dynamic>> postJson(
     String path, {
     Map<String, dynamic>? body,
+    Duration? timeout,
   }) async {
-    final response = await _authorizedRequest('POST', path, body: body);
+    final response = await _authorizedRequest(
+      'POST',
+      path,
+      body: body,
+      timeout: timeout,
+    );
     return _validatedBody(response, allowNullSuccess: true);
   }
 
@@ -149,12 +155,19 @@ class AuthenticatedApiService extends GetxService {
     String method,
     String path, {
     Object? body,
+    Duration? timeout,
   }) async {
     try {
       var accessToken = (await _session.readAccessToken())?.trim() ?? '';
       if (accessToken.isEmpty) throw const SessionExpiredException();
 
-      var response = await _request(method, path, accessToken, body: body);
+      var response = await _request(
+        method,
+        path,
+        accessToken,
+        body: body,
+        timeout: timeout,
+      );
       if (response.statusCode != 401) return response;
 
       final refreshed = await _refreshAccessToken();
@@ -165,7 +178,13 @@ class AuthenticatedApiService extends GetxService {
 
       accessToken = (await _session.readAccessToken())?.trim() ?? '';
       if (accessToken.isEmpty) throw const SessionExpiredException();
-      response = await _request(method, path, accessToken, body: body);
+      response = await _request(
+        method,
+        path,
+        accessToken,
+        body: body,
+        timeout: timeout,
+      );
       if (response.statusCode == 401) {
         await _session.clear();
         throw const SessionExpiredException();
@@ -189,6 +208,7 @@ class AuthenticatedApiService extends GetxService {
     String path,
     String accessToken, {
     Object? body,
+    Duration? timeout,
   }) {
     final request = http.Request(method, AppConfig.endpoint(path));
     request.headers.addAll({
@@ -199,7 +219,7 @@ class AuthenticatedApiService extends GetxService {
     if (body != null) request.body = jsonEncode(body);
     return _httpClient
         .send(request)
-        .timeout(AppConfig.requestTimeout)
+        .timeout(timeout ?? AppConfig.requestTimeout)
         .then(http.Response.fromStream);
   }
 
