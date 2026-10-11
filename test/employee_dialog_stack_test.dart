@@ -174,12 +174,21 @@ class _ReloadEmployeesControllerStub extends _EmployeesControllerStub {
 }
 
 class _SavingEmployeesControllerStub extends _EmployeesControllerStub {
+  EmployeeRecordKind? savedKind;
+  Map<String, dynamic>? savedBody;
+  String savedRecordId = '';
+
   @override
   Future<bool> saveRecord(
     EmployeeRecordKind kind,
     Map<String, dynamic> body, {
     String recordId = '',
-  }) async => true;
+  }) async {
+    savedKind = kind;
+    savedBody = Map<String, dynamic>.from(body);
+    savedRecordId = recordId;
+    return true;
+  }
 }
 
 class _ReloadHrAccessService extends HrAccessService {
@@ -1078,6 +1087,9 @@ void main() {
       ),
     );
     expect(renderedNumberField.enabled, isFalse);
+    expect(find.text('New'), findsWidgets);
+    expect(find.widgetWithText(TextButton, 'Post'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
 
     final startDateField = tester.widget<AppDateFormField>(
       find.byKey(const ValueKey('employee-record-start_date-date')),
@@ -1110,8 +1122,133 @@ void main() {
       '4',
     );
 
-    await tester.tap(find.text('Close'));
+    await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
+  }, skip: kIsWeb);
+
+  testWidgets('new leave shows Post and Cancel status actions', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.leave,
+              ),
+              child: const Text('Open new leave'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open new leave'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Leaves'), findsOneWidget);
+    expect(find.text('New'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Post'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
+    expect(find.byTooltip('Close'), findsOneWidget);
+    final closeCenter = tester.getCenter(find.byTooltip('Close'));
+    final statusCenter = tester.getCenter(find.text('New'));
+    expect(closeCenter.dx, greaterThan(statusCenter.dx));
+    expect(tester.takeException(), isNull);
+  }, skip: kIsWeb);
+
+  testWidgets('leave Post and Cancel save the selected status', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = _SavingEmployeesControllerStub();
+    Get.put<EmployeesController>(controller);
+    const leave = EmployeeRecord({
+      '_id': 'leave-1',
+      'leave_type': 'leave-type-1',
+      'leave_type_name': 'Annual leave',
+      'start_date': '2026-09-01T00:00:00.000',
+      'end_date': '2026-09-04T00:00:00.000',
+      'number_of_days': 4,
+      'status': 'New',
+    });
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.leave,
+                record: leave,
+              ),
+              child: const Text('Open leave actions'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open leave actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Post'));
+    await tester.pumpAndSettle();
+
+    expect(controller.savedKind, EmployeeRecordKind.leave);
+    expect(controller.savedRecordId, 'leave-1');
+    expect(controller.savedBody?['status'], 'Posted');
+
+    await tester.tap(find.text('Open leave actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(controller.savedBody?['status'], 'Cancelled');
+  }, skip: kIsWeb);
+
+  testWidgets('posted leave status actions are locked', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.put<EmployeesController>(_EmployeesControllerStub());
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showEmployeeRecordDialog(
+                context,
+                kind: EmployeeRecordKind.leave,
+                record: const EmployeeRecord({
+                  '_id': 'leave-posted',
+                  'leave_type': 'leave-type-1',
+                  'leave_type_name': 'Annual leave',
+                  'start_date': '2026-09-01T00:00:00.000',
+                  'end_date': '2026-09-04T00:00:00.000',
+                  'number_of_days': 4,
+                  'status': 'Posted',
+                }),
+              ),
+              child: const Text('Open posted leave'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open posted leave'));
+    await tester.pumpAndSettle();
+
+    for (final label in ['Save', 'Post', 'Cancel']) {
+      final button = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, label),
+      );
+      expect(button.onPressed, isNull, reason: '$label should be disabled');
+    }
   }, skip: kIsWeb);
 
   testWidgets('payroll element editor is 500 pixels and one column', (

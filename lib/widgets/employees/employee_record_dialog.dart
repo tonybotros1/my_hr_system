@@ -250,6 +250,8 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   bool _payrollValueEnabled = false;
   bool _payrollHasType = false;
   int _payrollSettingsRequest = 0;
+  String _leaveStatus = 'New';
+  String? _pendingAction;
 
   EmployeesController get controller => Get.find<EmployeesController>();
   EmployeeRecord? get record => widget.record;
@@ -279,6 +281,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     _useForPayslips = record?.boolean('use_for_payslips') ?? false;
     _payInAdvance = record?.boolean('pay_in_advance') ?? false;
     _isEmergency = record?.boolean('is_emergency') ?? false;
+    _leaveStatus = _normalizedLeaveStatus(record?.text('status') ?? '');
     final initialHolderType = _raw('health_card_holder_type');
     if (initialHolderType.isNotEmpty) _holderType = initialHolderType;
     if (widget.kind == EmployeeRecordKind.payrollElement) {
@@ -308,7 +311,22 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         _DialogHeader(
           title:
               '${record == null ? 'New' : 'Edit'} ${labelForRecordKind(widget.kind)}',
-          onSave: _save,
+          onSave:
+              widget.kind != EmployeeRecordKind.leave || _leaveStatus == 'New'
+              ? () => unawaited(_save())
+              : null,
+          leaveStatus: widget.kind == EmployeeRecordKind.leave
+              ? _leaveStatus
+              : null,
+          onPost:
+              widget.kind == EmployeeRecordKind.leave && _leaveStatus == 'New'
+              ? () => unawaited(_save(leaveStatus: 'Posted'))
+              : null,
+          onCancel:
+              widget.kind == EmployeeRecordKind.leave && _leaveStatus == 'New'
+              ? () => unawaited(_save(leaveStatus: 'Cancelled'))
+              : null,
+          pendingAction: _pendingAction,
         ),
         Flexible(
           fit: FlexFit.loose,
@@ -819,7 +837,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
     );
   }
 
-  Future<void> _save() async {
+  Future<void> _save({String? leaveStatus}) async {
     if (_formKey.currentState?.validate() != true) return;
     if (!_requiredSelectionsComplete) return;
     if (widget.kind == EmployeeRecordKind.leave) {
@@ -832,12 +850,23 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
         return;
       }
     }
-    final saved = await controller.saveRecord(
-      widget.kind,
-      _bodyPayload,
-      recordId: record?.id ?? '',
-    );
-    if (saved && mounted) Navigator.of(context).pop(true);
+    final body = Map<String, dynamic>.from(_bodyPayload);
+    if (widget.kind == EmployeeRecordKind.leave) {
+      body['status'] = leaveStatus ?? _leaveStatus;
+    }
+    if (mounted) {
+      setState(() => _pendingAction = leaveStatus ?? 'Save');
+    }
+    try {
+      final saved = await controller.saveRecord(
+        widget.kind,
+        body,
+        recordId: record?.id ?? '',
+      );
+      if (saved && mounted) Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) setState(() => _pendingAction = null);
+    }
   }
 
   bool get _requiredSelectionsComplete {
@@ -923,9 +952,7 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
       'leave_type': _ids['leave_type'],
       'start_date': _isoOrNull('start_date'),
       'end_date': _isoOrNull('end_date'),
-      'status': record?.text('status').isEmpty ?? true
-          ? 'New'
-          : record!.text('status'),
+      'status': _leaveStatus,
       'number_of_days': int.tryParse(_value('number_of_days')) ?? 0,
       'note': _value('note'),
       'pay_in_advance': _payInAdvance,
@@ -974,6 +1001,13 @@ class _EmployeeRecordEditorState extends State<_EmployeeRecordEditor> {
   String _raw(String key) => record?.text(key) ?? '';
   String _value(String key) => _fields[key]!.text.trim();
   double _double(String key) => double.tryParse(_value(key)) ?? 0;
+
+  String _normalizedLeaveStatus(String value) =>
+      switch (value.trim().toLowerCase()) {
+        'posted' => 'Posted',
+        'cancelled' => 'Cancelled',
+        _ => 'New',
+      };
 
   String _payrollEntryValueLabel(Map<String, dynamic>? element) {
     final label = employeeString(element?['entry_value_name']).trim();
@@ -1093,10 +1127,21 @@ class _GridField {
 }
 
 class _DialogHeader extends GetView<EmployeesController> {
-  const _DialogHeader({required this.title, required this.onSave});
+  const _DialogHeader({
+    required this.title,
+    required this.onSave,
+    this.leaveStatus,
+    this.onPost,
+    this.onCancel,
+    this.pendingAction,
+  });
 
   final String title;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
+  final String? leaveStatus;
+  final VoidCallback? onPost;
+  final VoidCallback? onCancel;
+  final String? pendingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -1109,33 +1154,137 @@ class _DialogHeader extends GetView<EmployeesController> {
         color: AppColors.mainCanvas,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(title, style: AppTextStyles.heading(fontSize: 20)),
-          ),
-          Obx(
-            () => TextButton(
-              onPressed: controller.isSaving.value
-                  ? null
-                  : () => Navigator.of(context).pop(false),
-              style: TextButton.styleFrom(foregroundColor: AppColors.textHint),
-              child: const Text('Close'),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Obx(
-            () => TextButton(
-              onPressed: controller.isSaving.value ? null : onSave,
-              child: controller.isSaving.value
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final identity = Text(
+            title,
+            style: AppTextStyles.heading(fontSize: 20),
+          );
+          final actions = Obx(() {
+            final isSaving = controller.isSaving.value;
+            return Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (leaveStatus == null)
+                  TextButton(
+                    onPressed: isSaving
+                        ? null
+                        : () => Navigator.of(context).pop(false),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textHint,
+                    ),
+                    child: const Text('Close'),
+                  ),
+                _HeaderActionButton(
+                  label: 'Save',
+                  onPressed: isSaving ? null : onSave,
+                  isLoading: isSaving && pendingAction == 'Save',
+                ),
+                if (leaveStatus != null) ...[
+                  _HeaderActionButton(
+                    label: 'Post',
+                    onPressed: isSaving ? null : onPost,
+                    isLoading: isSaving && pendingAction == 'Posted',
+                    foregroundColor: AppColors.success,
+                  ),
+                  _HeaderActionButton(
+                    label: 'Cancel',
+                    onPressed: isSaving ? null : onCancel,
+                    isLoading: isSaving && pendingAction == 'Cancelled',
+                    foregroundColor: AppColors.error,
+                  ),
+                  _LeaveStatusBadge(status: leaveStatus!),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: isSaving
+                        ? null
+                        : () => Navigator.of(context).pop(false),
+                    color: AppColors.textSecondary,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ],
+            );
+          });
+          if (constraints.maxWidth < 560) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                identity,
+                const SizedBox(height: AppSpacing.xs),
+                Align(alignment: Alignment.centerRight, child: actions),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: identity),
+              const SizedBox(width: AppSpacing.md),
+              actions,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.label,
+    required this.onPressed,
+    required this.isLoading,
+    this.foregroundColor,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+  final Color? foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: foregroundColor == null
+          ? null
+          : TextButton.styleFrom(foregroundColor: foregroundColor),
+      child: isLoading
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(label),
+    );
+  }
+}
+
+class _LeaveStatusBadge extends StatelessWidget {
+  const _LeaveStatusBadge({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (background, foreground) = switch (status) {
+      'Posted' => (AppColors.successBackground, AppColors.success),
+      'Cancelled' => (AppColors.dangerBackground, AppColors.errorText),
+      _ => (AppColors.informationBackground, AppColors.informationText),
+    };
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status,
+        style: AppTextStyles.badge.copyWith(color: foreground),
       ),
     );
   }
