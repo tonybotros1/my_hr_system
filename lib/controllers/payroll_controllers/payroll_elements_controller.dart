@@ -33,6 +33,7 @@ class PayrollElementsController extends GetxController {
     'PY_LOAN_AND_ADVANCES_FF',
     'PY_SERVICE_TAX_FF',
     'PY_INCOME_TAX_DEDUCTION_FF',
+    'PY_X_PERCENT_OF_TOTAL_EARNINGS_FF'
   ];
 
   final AuthenticatedApiService? _apiOverride;
